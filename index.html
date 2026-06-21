@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DeluxeTags Config Builder</title>
+  <link rel="icon" href="./static/nav-logo.png">
+  <link href="https://fonts.cdnfonts.com/css/pixelcraft-2" rel="stylesheet">
+  <link rel="stylesheet" href="./static/styles.css">
+  <link rel="stylesheet" href="./static/app.css">
+</head>
+<body>
+  <nav id="app-nav">
+    <div class="nav-left">
+      <a class="nav-logo-link" href="./index.html" aria-label="DeluxeTags builder">
+        <img class="nav-logo-img" src="./static/nav-logo.png" alt="DeluxeTags">
+      </a>
+      <span class="nav-pipe">/</span>
+      <p id="paste-time">Config Builder</p>
+    </div>
+    <div class="nav-right">
+      <button class="function enabled" id="nav-import-btn" title="Import config.yml" aria-label="Import YAML">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 10V2M5 5l3-3 3 3"/><path d="M3 11v2h10v-2"/></svg>
+      </button>
+      <button class="function enabled" id="nav-download-btn" title="Download config.yml" aria-label="Download YAML">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v8M5 7l3 3 3-3"/><path d="M3 13h10"/></svg>
+      </button>
+      <button class="function enabled" id="nav-settings-btn" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 16 16" fill="currentColor" width="16" height="16"><path fill-rule="evenodd" clip-rule="evenodd" d="M9.19 2.54c-.3-1.25-2.08-1.25-2.38 0a1.226 1.226 0 01-1.829.758c-1.097-.668-2.353.587-1.685 1.684a1.226 1.226 0 01-.757 1.83c-1.25.303-1.25 2.08 0 2.382a1.226 1.226 0 01.757 1.83c-.668 1.097.588 2.352 1.685 1.684a1.226 1.226 0 011.829.757c.303 1.25 2.08 1.25 2.38 0a1.227 1.227 0 011.83-.757c1.096.668 2.352-.587 1.684-1.685a1.227 1.227 0 01.758-1.829c1.25-.302 1.25-2.08 0-2.382a1.226 1.226 0 01-.758-1.83c.668-1.096-.588-2.352-1.685-1.684a1.226 1.226 0 01-1.83-.757zM8 10.4a2.4 2.4 0 100-4.8 2.4 2.4 0 000 4.8z"/></svg>
+      </button>
+    </div>
+  </nav>
+
+  <ul id="messages" aria-live="polite"></ul>
+
+  <main id="builder-app">
+    <section id="inventory-area" aria-label="Minecraft inventory preview">
+      <div id="inventory-content"></div>
+    </section>
+    <aside id="context-panel" aria-label="Tag editor"></aside>
+  </main>
+
+  <script src="./static/vendor/js-yaml.min.js"></script>
+  <script src="./static/app-core.js"></script>
+  <script src="./static/app.js"></script>
+</body>
+</html>
