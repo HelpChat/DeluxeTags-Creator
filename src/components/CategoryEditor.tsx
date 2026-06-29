@@ -1,0 +1,105 @@
+import { useState } from 'react'
+import { iconCandidates } from '../core'
+import { useApp } from '../state/store'
+import { AdvancedFields } from './AdvancedFields'
+import { EditorField } from './EditorField'
+import { ItemPicker } from './ItemPicker'
+import { MaterialIcon } from './MaterialIcon'
+import { McText } from './McText'
+import { PlaceholderPalette } from './PlaceholderPalette'
+
+export function CategoryEditor({ catId }: { catId: string }) {
+  const { state, dispatch, toast } = useApp()
+  const config = state.config
+  const cat = config.categories[catId]
+  const [renameValue, setRenameValue] = useState(catId)
+  if (!cat) return null
+
+  const isAll = catId === 'all'
+  const base = `config.categories.${catId}`
+  const setPath = (key: string, value: unknown) => dispatch({ type: 'set-path', path: `${base}.${key}`, value })
+  const loreVal = Array.isArray(cat.lore) ? cat.lore.join('\n') : String(cat.lore ?? '')
+  const candidates = iconCandidates(cat.item || 'NAME_TAG', state.preview.iconTemplate)
+
+  function handleRename() {
+    const value = renameValue.trim()
+    if (!value || value === 'all') {
+      toast('Invalid category ID.', true)
+      return
+    }
+    if (value !== catId && config.categories[value]) {
+      toast('That ID is already in use.', true)
+      return
+    }
+    dispatch({ type: 'rename-category', oldId: catId, newId: value })
+  }
+
+  return (
+    <>
+      <div className="ctx-header">
+        <div className="ctx-header-icon">
+          <svg className="ctx-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+            <path d="M1.5 13.5V4.5h5.5l1.5-2H14.5v11z" />
+          </svg>
+        </div>
+        <div className="ctx-header-text">
+          <strong>
+            <McText raw={cat.name || catId} config={config} />
+          </strong>
+          <small>{catId}</small>
+        </div>
+        {isAll ? null : (
+          <button type="button" className="ctx-clone-btn" title="Duplicate category (Ctrl+D)" onClick={() => dispatch({ type: 'clone-category', id: catId })}>
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+              <rect x="5.5" y="5.5" width="8" height="8" rx="1.2" />
+              <path d="M10.5 5.5V3.2A1.2 1.2 0 009.3 2H3.2A1.2 1.2 0 002 3.2v6.1A1.2 1.2 0 003.2 10.5h2.3" />
+            </svg>
+          </button>
+        )}
+        {isAll ? null : (
+          <button type="button" className="ctx-delete-btn" title="Delete category" onClick={() => dispatch({ type: 'delete-category', id: catId })}>
+            <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      <div className="ctx-body">
+        <div className="tag-banner">
+          <div className="tag-banner-preview">
+            <McText raw={cat.name || catId} config={config} />
+          </div>
+          <div className="tag-banner-icon">
+            <MaterialIcon material={cat.item} candidates={candidates} imgClass="item-icon" fallbackClass="item-fallback-sm" />
+          </div>
+        </div>
+
+        <EditorField label="Category Name" value={cat.name} config={config} placeholder="&6Category Name" onChange={(raw) => setPath('name', raw)} />
+        <EditorField label="Menu Title" value={cat.gui_name} config={config} placeholder="&6Category Tags" onChange={(raw) => setPath('gui_name', raw)} />
+        <EditorField label="Lore" value={loreVal} config={config} multiline rows={3} onChange={(raw) => setPath('lore', raw.split('\n'))} />
+
+        <PlaceholderPalette />
+
+        <div className="ctx-section">
+          <span className="ctx-section-label">Item</span>
+          <ItemPicker value={cat.item} iconTemplate={state.preview.iconTemplate} onPick={(material) => setPath('item', material)} />
+        </div>
+
+        <AdvancedFields item={cat as unknown as Record<string, unknown>} setPath={setPath} />
+
+        {isAll ? null : (
+          <div className="ctx-section">
+            <span className="ctx-section-label">Rename ID</span>
+            <div className="rename-row">
+              <input type="text" value={renameValue} placeholder={catId} onChange={(e) => setRenameValue(e.target.value)} />
+              <button type="button" onClick={handleRename}>
+                Apply
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}

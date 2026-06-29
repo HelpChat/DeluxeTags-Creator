@@ -1,0 +1,171 @@
+:root {
+	--minecraft-font: "PixelCraft";
+}
+
+body {
+	background: #1a1a1a;
+	padding: 44px 110px 20px 50px;
+	margin: 0;
+	font-family: var(--minecraft-font);
+}
+
+/* Scrollbars */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: #4a4a4a #1f1f1f;
+}
+
+*::-webkit-scrollbar {
+	width: 10px;
+	height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+	background: #1f1f1f;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: #4a4a4a;
+	border: 2px solid #1f1f1f;
+	border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: #5a5a5a;
+}
+
+*::-webkit-scrollbar-corner {
+	background: #1f1f1f;
+}
+
+/* Nav */
+#app-nav {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	height: 44px;
+	z-index: 1000;
+	background: #141414;
+	border-bottom: 1px solid #222;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 8px 0 14px;
+}
+
+.nav-left {
+	display: flex;
+	align-items: center;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.nav-logo-link {
+	display: flex;
+	align-items: center;
+	flex-shrink: 0;
+	text-decoration: none;
+}
+
+.nav-logo-img {
+	height: 22px;
+	display: block;
+	filter: grayscale(0.2) brightness(0.9);
+	transition: filter 0.12s;
+}
+
+.nav-logo-link:hover .nav-logo-img {
+	filter: grayscale(0) brightness(1.1);
+}
+
+.nav-pipe {
+	color: #2e2e2e;
+	font-family: var(--minecraft-font);
+	font-size: 13px;
+	margin: 0 10px;
+	flex-shrink: 0;
+}
+
+.nav-right {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+}
+
+.nav-right .function {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	background: transparent;
+	border: none;
+	border-radius: 5px;
+	color: #3a3a3a;
+	cursor: default;
+	transition: background 0.12s, color 0.12s;
+	text-decoration: none;
+}
+
+.nav-right .function svg {
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+.nav-right .function.enabled {
+	color: #666;
+	cursor: pointer;
+}
+
+.nav-right .function.enabled:hover {
+	background: #1e1e1e;
+	color: #d0d0d0;
+}
+
+#paste-time {
+	margin: 0;
+	line-height: 1;
+	color: #4a4a4a;
+	font-family: var(--minecraft-font);
+	font-size: 11px;
+	letter-spacing: 0.01em;
+	white-space: nowrap;
+}
+
+/* Toasts */
+#messages {
+	position: fixed;
+	top: 48px;
+	left: 60px;
+	margin: 0;
+	padding: 0;
+	width: 400px;
+	z-index: 1100;
+}
+
+#messages li {
+	background: rgba(30, 30, 30, 0.9);
+	color: #d0d0d0;
+	padding: 8px 14px;
+	font-family: var(--minecraft-font);
+	font-size: 12px;
+	margin: 0 auto;
+	list-style: none;
+}
+
+#messages li.error {
+	background: rgba(102, 8, 0, 0.8);
+}
+
+/* Settings container is created dynamically with this id. */
+#settings-modal {
+	position: fixed;
+	inset: 0;
+	z-index: 2000;
+}
+
