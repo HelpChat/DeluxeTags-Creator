@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { replacePlaceholders } from '../core'
 import { useApp } from '../state/store'
 import { tagIds } from '../state/operations'
 import { McText } from './McText'
@@ -44,9 +45,21 @@ export function SettingsModal() {
       : preview.iconTemplate
     setPath('preview.iconTemplate', template)
   }
-  const chatSample = String(config.format_chat.format)
-    .replace('%1$s', preview.playerName || 'Steve')
-    .replace('%2$s', 'Hello there!')
+  // Resolve DeluxeTags placeholders (e.g. %deluxetags_tag%) against the active/first tag, then fill
+  // the Bukkit chat args (%1$s player, %2$s message). Respects the Placeholders toggle.
+  const chatTagId = preview.activeTagId && config.deluxetags[preview.activeTagId] ? preview.activeTagId : tagIds(config)[0]
+  const chatTag = chatTagId ? config.deluxetags[chatTagId] : undefined
+  const chatSample = replacePlaceholders(
+    String(config.format_chat.format),
+    {
+      parse: preview.resolvePlaceholders !== false,
+      playerName: preview.playerName || 'Steve',
+      tag: chatTag ? { tag: chatTag.tag, identifier: chatTagId, description: chatTag.description } : undefined,
+    },
+    config,
+  )
+    .replaceAll('%1$s', preview.playerName || 'Steve')
+    .replaceAll('%2$s', 'Hello there!')
 
   return (
     <div className="modal-card wide">

@@ -1,4 +1,20 @@
-import { patchRawFromPlain, replaceStyledRange, styledPlainMap } from './index';
+import { patchRawFromPlain, replaceStyledRange, styledPlainMap, styledRawRange } from './index';
+
+// Mirrors StyledEditor.applyWrapper: wraps the visible selection [start,end) with opening/closing
+// tags via the tag-aware helpers, so the assertions guard the colour/gradient apply path.
+function wrapSelection(
+  raw: string,
+  start: number,
+  end: number,
+  opening: string,
+  closing: string,
+  useMini: boolean,
+  fallback = 'Text',
+): string {
+  const { rawStart, rawEnd } = styledRawRange(raw, start, end, useMini);
+  const body = end > start ? raw.slice(rawStart, rawEnd) : fallback;
+  return replaceStyledRange(raw, start, end, opening + body + closing, useMini);
+}
 
 describe('styledPlainMap', () => {
   it('maps plain offsets across MiniMessage tags', () => {
@@ -51,6 +67,30 @@ describe('replaceStyledRange (Bug A: tag aware editing)', () => {
   it('leaves legacy color codes intact when editing in legacy mode', () => {
     // raw "&aHello", plain "Hello". Delete "H" (plain [0,1)) keeps the &a code.
     expect(replaceStyledRange('&aHello', 0, 1, '', false)).toBe('&aello');
+  });
+});
+
+describe('applyWrapper colour/gradient path (Item 6)', () => {
+  it('wraps a selection without splicing into an adjacent tag', () => {
+    // raw "<bold>AB</bold>", plain "AB". Colour-wrap just "A" (plain [0,1)).
+    const out = wrapSelection('<bold>AB</bold>', 0, 1, '<color:#ff0000>', '</color>', true);
+    expect(out).toBe('<bold><color:#ff0000>A</color>B</bold>');
+    expect(styledPlainMap(out, true).plain).toBe('AB');
+  });
+
+  it('preserves inner tags contained in the wrapped selection', () => {
+    const raw = 'a<bold>b</bold>c';
+    // wrap the whole visible "abc" in a gradient
+    const out = wrapSelection(raw, 0, 3, '<gradient:#55ffff:#ff55ff>', '</gradient>', true);
+    expect(out).toBe('<gradient:#55ffff:#ff55ff>a<bold>b</bold>c</gradient>');
+    expect(styledPlainMap(out, true).plain).toBe('abc');
+  });
+
+  it('inserts the fallback text at the caret when there is no selection (never wraps the whole field)', () => {
+    const out = wrapSelection('Hello', 5, 5, '<color:#00ff00>', '</color>', true);
+    expect(out).toBe('Hello<color:#00ff00>Text</color>');
+    // the existing text is untouched
+    expect(out.startsWith('Hello')).toBe(true);
   });
 });
 

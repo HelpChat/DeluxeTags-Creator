@@ -85,77 +85,51 @@ describe('config migration and normalization', () => {
   });
 });
 
-describe('advanced GUI item field round-trips', () => {
-  it('keeps item_model, model_data and model_data_component on a static GUI item', () => {
+describe('unsupported advanced fields are dropped', () => {
+  // DeluxeTags only supports material + data/ID for tag/category/GUI items. The builder no
+  // longer reads, keeps, or serializes item_model / model_data / model_data_component.
+  it('strips advanced fields from a static GUI item on import and export', () => {
     const config = normalizeImportedConfig({
       gui: {
         has_tag_item: {
           material: 'PLAYER_HEAD',
           item_model: 'mycraft:fancy_head',
           model_data: 42,
-          model_data_component: {
-            colors: ['#ff0000', ''],
-            flags: ['true'],
-            floats: [],
-            strings: ['hello'],
-          },
+          model_data_component: { colors: ['#ff0000'], flags: ['true'], floats: [], strings: ['hello'] },
           slots: ['49'],
         },
       },
     });
 
     const item = config.gui.has_tag_item as Record<string, unknown>;
-    expect(item.item_model).toBe('mycraft:fancy_head');
-    expect(item.model_data).toBe(42);
-    expect(item.model_data_component).toEqual({
-      colors: ['#ff0000', ''],
-      flags: ['true'],
-      floats: [],
-      strings: ['hello'],
-    });
+    expect(item.material).toBe('PLAYER_HEAD');
+    expect(item.item_model).toBeUndefined();
+    expect(item.model_data).toBeUndefined();
+    expect(item.model_data_component).toBeUndefined();
 
     const exported = buildExportObject(config, 'full') as Record<string, any>;
     const exportedItem = exported.gui.has_tag_item;
-    expect(exportedItem.item_model).toBe('mycraft:fancy_head');
-    expect(exportedItem.model_data).toBe(42);
-    // empty-string lines are filtered on export
-    expect(exportedItem.model_data_component).toEqual({
-      colors: ['#ff0000'],
-      flags: ['true'],
-      strings: ['hello'],
-    });
+    expect(exportedItem.item_model).toBeUndefined();
+    expect(exportedItem.model_data).toBeUndefined();
+    expect(exportedItem.model_data_component).toBeUndefined();
   });
 
-  it('keeps advanced fields on tags through normalize and export (Phase 6)', () => {
+  it('strips advanced fields from tags and categories', () => {
     const config = normalizeImportedConfig({
-      deluxetags: {
-        vip: {
-          order: 1,
-          tag: '&6VIP',
-          item_model: 'mycraft:fancy',
-          model_data: 7,
-        },
-      },
-    });
-    const tag = config.deluxetags.vip as unknown as Record<string, unknown>;
-    expect(tag.item_model).toBe('mycraft:fancy');
-    expect(tag.model_data).toBe(7);
-
-    const exported = buildExportObject(config, 'full') as Record<string, any>;
-    expect(exported.deluxetags.vip.item_model).toBe('mycraft:fancy');
-    expect(exported.deluxetags.vip.model_data).toBe(7);
-  });
-
-  it('keeps advanced fields on categories through normalize and export (Phase 6)', () => {
-    const config = normalizeImportedConfig({
+      deluxetags: { vip: { order: 1, tag: '&6VIP', item_model: 'mycraft:fancy', model_data: 7 } },
       categories: {
         general: { order: 1, item: 'NAME_TAG', name: '&6G', gui_name: '&6G', model_data: 12 },
       },
     });
-    const category = config.categories.general as unknown as Record<string, unknown>;
-    expect(category.model_data).toBe(12);
+    const tag = config.deluxetags.vip as unknown as Record<string, unknown>;
+    expect(tag.item_model).toBeUndefined();
+    expect(tag.model_data).toBeUndefined();
+    expect((config.categories.general as unknown as Record<string, unknown>).model_data).toBeUndefined();
+
     const exported = buildExportObject(config, 'full') as Record<string, any>;
-    expect(exported.categories.general.model_data).toBe(12);
+    expect(exported.deluxetags.vip.item_model).toBeUndefined();
+    expect(exported.deluxetags.vip.model_data).toBeUndefined();
+    expect(exported.categories.general.model_data).toBeUndefined();
   });
 });
 

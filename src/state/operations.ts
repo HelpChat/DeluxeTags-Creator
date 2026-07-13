@@ -80,13 +80,49 @@ function currentAssignment(next: AppState): SlotAssignment[] {
   })
 }
 
-/** Write an assignment back to config: tag_slots become the sorted occupied slots, orders match. */
-function applyAssignment(next: AppState, assignment: SlotAssignment[]): void {
+/** All menu slots occupied by static GUI items (dividers, exit, page buttons, etc.). */
+function staticOccupiedSlots(config: Config): Set<number> {
+  const size = menuSize(config)
+  const used = new Set<number>()
+  for (const value of Object.values(config.gui as unknown as AnyRecord)) {
+    const item = value as AnyRecord | null
+    if (item && Array.isArray(item.slots)) {
+      for (const slot of parseSlotList(item.slots as string[], size).slots) used.add(slot)
+    }
+  }
+  return used
+}
+
+/**
+ * Write an assignment back to config. Tags are dynamic in DeluxeTags: they always occupy a
+ * contiguous run of slots with no gaps, and only their order is meaningful. So we keep the
+ * configured region start (the lowest existing tag slot) and lay the tags out from there in
+ * their sorted order, skipping any slot a static item sits on, which turns any arbitrary drop slot
+ * into a pure reorder and lets tags flow around static items instead of stacking under them.
+ */
+function applyAssignment(next: AppState, assignment: SlotAssignment[], reclaimSlot?: number): void {
   const sorted = [...assignment].sort((a, b) => a.slot - b.slot)
-  next.config.gui.tag_slots = sorted.map((a) => String(a.slot))
+  const prev = parseSlotList(next.config.gui.tag_slots, menuSize(next.config)).slots
+  let base = prev.length ? Math.min(...prev) : sorted.length ? sorted[0].slot : 0
+  // When a static vacates a slot below the region (e.g. it was dropped onto a tag from in front),
+  // let the tags reclaim it so they do not drift forward past the region start.
+  if (reclaimSlot != null && reclaimSlot < base) base = reclaimSlot
+  const statics = staticOccupiedSlots(next.config)
+  const size = menuSize(next.config)
+  const tagSlots: string[] = []
+  let slot = base
   sorted.forEach((a, i) => {
+    while (slot < size && statics.has(slot)) slot += 1
+    tagSlots.push(String(slot))
     ;(next.config.deluxetags[a.id] as unknown as AnyRecord).order = i + 1
+    slot += 1
   })
+  next.config.gui.tag_slots = tagSlots
+}
+
+/** Re-flow tags into a contiguous, gap-free run. Call after removing tags. */
+function reflowTags(next: AppState, reclaimSlot?: number): void {
+  applyAssignment(next, currentAssignment(next), reclaimSlot)
 }
 
 /** Place a tag id at an exact slot, shifting any tags at or after that slot up to make room. */
@@ -193,6 +229,20 @@ export function selectSlot(state: AppState, slot: number | null, mode: SelectMod
   return next
 }
 
+/**
+ * Find the visible slot currently occupied by a given tag or category in the built preview, or
+ * null when it is not on the active screen. Used after add/delete/clone so the sidebar can re-open
+ * the resulting entry's editor instead of falling back to the empty hint.
+ */
+function slotOfRef(next: AppState, kind: 'tag' | 'category', id: string): number | null {
+  const preview = buildPreview(next.config, next.preview)
+  for (let i = 0; i < preview.slots.length; i += 1) {
+    const ref = ((preview.slots[i] as unknown as AnyRecord | null)?.ref as AnyRecord) || null
+    if (ref?.kind === kind && String(ref.id) === id) return i
+  }
+  return null
+}
+
 /** Resolve the marked slots to the distinct tag and category ids they point at. */
 export function markedRefs(state: AppState): { tags: string[]; categories: string[] } {
   const preview = buildPreview(state.config, state.preview)
@@ -226,8 +276,15 @@ export function bulkDelete(state: AppState): AppState {
   for (const tag of Object.values(next.config.deluxetags) as unknown as AnyRecord[]) {
     if (categories.includes(String(tag.category))) tag.category = fallback
   }
+  if (tags.length) reflowTags(next)
   next.selection.marked = []
   next.selection.slot = null
+  // Keep an editor open on a surviving tag rather than falling back to the empty hint.
+  const remaining = tagIds(next.config)
+  if (remaining.length) {
+    const target = slotOfRef(next, 'tag', remaining[0])
+    if (target != null) return selectSlot(next, target)
+  }
   return next
 }
 
@@ -236,7 +293,8 @@ export function bulkDuplicate(state: AppState): AppState {
   let next: AppState = state
   for (const id of tags) next = cloneTag(next, id)
   for (const id of categories) next = cloneCategory(next, id)
-  return { ...next, selection: { ...next.selection, marked: [], slot: null } }
+  // The last clone left its slot selected; keep it so its editor stays open, just clear the marks.
+  return { ...next, selection: { ...next.selection, marked: [] } }
 }
 
 export function bulkMoveCategory(state: AppState, category: string): AppState {
@@ -295,19 +353,23 @@ export function addTag(state: AppState): AppState {
   })
   next.preview.unlockedTags[id] = true
   next.selection.tag = id
-  next.selection.slot = null
-  return next
+  const slot = slotOfRef(next, 'tag', id)
+  return slot != null ? selectSlot(next, slot) : { ...next, selection: { ...next.selection, slot: null } }
 }
 
 export function deleteTag(state: AppState, id: string): AppState {
   const next = draft(state)
+  const order = tagIds(state.config).indexOf(id)
   delete next.config.deluxetags[id]
   delete next.preview.unlockedTags[id]
   const remaining = tagIds(next.config)
   if (next.preview.activeTagId === id) next.preview.activeTagId = remaining[0] || ''
-  next.selection.tag = remaining[0] || ''
-  next.selection.slot = null
-  return next
+  reflowTags(next)
+  // Select the neighbour that took the deleted tag's place so the editor stays open.
+  const targetTag = remaining.length ? remaining[Math.min(order, remaining.length - 1)] : ''
+  next.selection.tag = targetTag
+  const slot = targetTag ? slotOfRef(next, 'tag', targetTag) : null
+  return slot != null ? selectSlot(next, slot) : { ...next, selection: { ...next.selection, slot: null } }
 }
 
 export function addCategory(state: AppState): AppState {
@@ -321,7 +383,12 @@ export function addCategory(state: AppState): AppState {
     gui_name: textForMode(next.config, `&6${id} tags`),
   }
   next.selection.category = id
-  return next
+  // Show the categories screen and open the new (still empty) category's editor. The categories
+  // screen lists empty categories, so no placeholder tag is created and nothing lands on the tags
+  // pages.
+  next.preview.screen = 'categories'
+  const slot = slotOfRef(next, 'category', id)
+  return slot != null ? selectSlot(next, slot) : next
 }
 
 export function deleteCategory(state: AppState, id: string): AppState {
@@ -332,8 +399,8 @@ export function deleteCategory(state: AppState, id: string): AppState {
     if (tag.category === id) tag.category = fallback
   }
   next.selection.category = fallback
-  next.selection.slot = null
-  return next
+  const slot = slotOfRef(next, 'category', fallback)
+  return slot != null ? selectSlot(next, slot) : { ...next, selection: { ...next.selection, slot: null } }
 }
 
 /** Returns the new state, or null when the new id collides. */
@@ -388,10 +455,9 @@ export function addTagAtSlot(state: AppState, slot: number): AppState {
   return selectSlot(next, slot)
 }
 
-export function addCategoryAtSlot(state: AppState, slot: number): AppState {
+export function addCategoryAtSlot(state: AppState, _slot: number): AppState {
   const next = draft(state)
   const id = nextUnique('category', categoryIds(next.config))
-  const tagId = nextUnique(`${id}_tag`, tagIds(next.config))
   next.config.categories[id] = {
     order: maxOrder(Object.values(next.config.categories) as unknown as AnyRecord[]) + 1,
     item: 'NAME_TAG',
@@ -399,20 +465,12 @@ export function addCategoryAtSlot(state: AppState, slot: number): AppState {
     lore: linesForMode(next.config, ['&7Click to view tags']),
     gui_name: textForMode(next.config, `&6${id} tags`),
   }
-  appendTag(next, tagId, {
-    category: id,
-    tag: textForMode(next.config, '&7[&fNew Tag&7]'),
-    displayname: textForMode(next.config, '&6Tag&f: &6%deluxetags_identifier%'),
-    description: linesForMode(next.config, ['&7A new tag.', '%deluxetags_available%']),
-    item: 'NAME_TAG',
-    data: 0,
-    permission: `deluxetags.tag.${tagId}`,
-  })
-  next.preview.unlockedTags[tagId] = true
   next.selection.category = id
-  next.selection.tag = tagId
+  // Categories live on the categories screen (which lists empty ones), so no placeholder tag is
+  // created; switch there and open the new category's editor.
   next.preview.screen = 'categories'
-  return selectSlot(next, slot)
+  const slot = slotOfRef(next, 'category', id)
+  return slot != null ? selectSlot(next, slot) : next
 }
 
 export function setStaticItemAtSlot(state: AppState, key: string, slot: number): AppState {
@@ -423,6 +481,17 @@ export function setStaticItemAtSlot(state: AppState, key: string, slot: number):
   if (!slots.includes(slot)) slots.push(slot)
   item.slots = slots.sort((a, b) => a - b).map(String)
   return selectSlot(next, slot)
+}
+
+/** Add or remove a single slot from a static GUI item's slot list, keeping it sorted. */
+export function toggleStaticSlot(state: AppState, key: string, slot: number): AppState {
+  const next = draft(state)
+  const item = next.config.gui[key] as AnyRecord | undefined
+  if (!item) return next
+  const slots = parseSlotList((item.slots as string[]) || [], menuSize(next.config)).slots
+  const updated = slots.includes(slot) ? slots.filter((s) => s !== slot) : [...slots, slot]
+  item.slots = updated.sort((a, b) => a - b).map(String)
+  return next
 }
 
 function moveStaticSlot(config: Config, key: string, fromSlot: number, toSlot: number): void {
@@ -452,6 +521,9 @@ export function movePreviewItem(state: AppState, fromSlot: number, toSlot: numbe
   if (!fromRef || fromSlot === toSlot) return next
   if (fromRef.kind === 'static') {
     moveStaticSlot(next.config, String(fromRef.id), fromSlot, toSlot)
+    // Reflow so tags flow around the static's new slot instead of stacking under it, reclaiming the
+    // slot the static left (so a static dropped on a tag from in front swaps cleanly).
+    reflowTags(next, fromSlot)
   } else if (fromRef.kind === 'tag' && toRef?.kind === 'tag') {
     // Swap the two tags' slots so they trade places.
     const assignment = currentAssignment(next)
@@ -486,8 +558,8 @@ function insertClonedTag(state: AppState, source: unknown, baseId: string, slot:
   applyAssignment(next, assignToSlot(existing, newId, targetSlot))
   next.preview.unlockedTags[newId] = true
   next.selection.tag = newId
-  next.selection.slot = null
-  return next
+  const sel = slotOfRef(next, 'tag', newId)
+  return sel != null ? selectSlot(next, sel) : { ...next, selection: { ...next.selection, slot: null } }
 }
 
 function insertClonedCategory(state: AppState, source: unknown, baseId: string): AppState {
@@ -497,8 +569,8 @@ function insertClonedCategory(state: AppState, source: unknown, baseId: string):
   data.order = maxOrder(Object.values(next.config.categories) as unknown as AnyRecord[]) + 1
   next.config.categories[newId] = data as unknown as (typeof next.config.categories)[string]
   next.selection.category = newId
-  next.selection.slot = null
-  return next
+  const slot = slotOfRef(next, 'category', newId)
+  return slot != null ? selectSlot(next, slot) : { ...next, selection: { ...next.selection, slot: null } }
 }
 
 export function cloneTag(state: AppState, id: string): AppState {
@@ -557,6 +629,8 @@ export function insertGeneratedTags(state: AppState, tags: GeneratedTag[]): AppS
   }
   if (firstId) {
     next.selection.tag = firstId
+    const slot = slotOfRef(next, 'tag', firstId)
+    if (slot != null) return selectSlot(next, slot)
     next.selection.slot = null
   }
   return next

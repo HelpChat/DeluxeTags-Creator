@@ -44,6 +44,11 @@ function PanelBody({ preview }: { preview: PreviewResult }) {
   const { state } = useApp()
   const { slot } = state.selection
 
+  // While picking slots on the grid, keep that static item's editor open regardless of selection.
+  if (state.slotPick && state.config.gui[state.slotPick]) {
+    return <StaticEditor key={state.slotPick} itemKey={state.slotPick} />
+  }
+
   if (slot == null) return <Hint />
   const item = preview.slots[slot]
   if (!item) return <EmptySlotActions slot={slot} />

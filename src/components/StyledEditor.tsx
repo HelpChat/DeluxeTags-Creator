@@ -1,9 +1,10 @@
-import { useEffect, useRef, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useRef, type CSSProperties, type FormEvent, type KeyboardEvent } from 'react'
 import {
   formatTextHtml,
   patchRawFromPlain,
   replaceStyledRange,
   styledPlainMap,
+  styledRawRange,
   type Config,
 } from '../core'
 import { useApp, type ActiveEditor } from '../state/store'
@@ -22,7 +23,10 @@ interface StyledEditorProps {
 
 /** HTML for the contenteditable: newlines become literal \n, which renders via white-space pre-wrap. */
 function editorHtml(raw: string, config: Config): string {
-  return formatTextHtml(raw, config).replace(/<br\s*\/?>/g, '\n')
+  const html = formatTextHtml(raw, config).replace(/<br\s*\/?>/g, '\n')
+  // A contenteditable cannot place the caret past a trailing newline without a following element, so
+  // a trailing \n would trap the caret on the previous line. Append a <br> to give it a home.
+  return raw.endsWith('\n') ? `${html}<br>` : html
 }
 
 /** Plain text offset of a DOM position, measured against the editor contents. */
@@ -101,7 +105,11 @@ export function StyledEditor({ value, config, onChange, multiline = false, rows,
     if (!el) return
     rawRef.current = newRaw
     el.innerHTML = editorHtml(newRaw, config)
-    setCaret(el, Math.min(caret, styledPlainMap(newRaw, useMini).plain.length))
+    const clamped = Math.min(caret, styledPlainMap(newRaw, useMini).plain.length)
+    setCaret(el, clamped)
+    // Keep the remembered caret in sync so the next keystroke (e.g. Enter) has an accurate position
+    // even if the live DOM selection was invalidated by replacing innerHTML.
+    savedSelection.current = { start: clamped, end: clamped }
     onChange(newRaw)
   }
 
@@ -153,6 +161,24 @@ export function StyledEditor({ value, config, onChange, multiline = false, rows,
     applyRange(plain.start, plain.end, text)
   }
 
+  // Enter reliably inserts a newline in multiline fields. The browser's own insertParagraph handling
+  // in a contenteditable does not round-trip through our plain/raw mapping, so we do it explicitly.
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Enter') return
+    if (!multiline) {
+      event.preventDefault()
+      return
+    }
+    event.preventDefault()
+    const el = ref.current
+    if (!el) return
+    const sel = selectionPlainRange(el) ?? savedSelection.current
+    const plainLength = styledPlainMap(rawRef.current, useMini).plain.length
+    const start = sel ? Math.min(sel.start, sel.end) : plainLength
+    const end = sel ? Math.max(sel.start, sel.end) : start
+    applyRange(start, end, '\n')
+  }
+
   // Fallback for edits that were not handled in beforeinput.
   function handleInput() {
     const el = ref.current
@@ -177,17 +203,22 @@ export function StyledEditor({ value, config, onChange, multiline = false, rows,
       applyWrapper(opening, closing, fallbackText = 'Text') {
         const el = ref.current
         if (!el) return
-        const sel = selectionPlainRange(el) ??
-          savedSelection.current ?? { start: styledPlainMap(rawRef.current, useMini).plain.length, end: 0 }
-        const start = Math.min(sel.start, sel.end)
-        const end = Math.max(sel.start, sel.end)
         const raw = rawRef.current
-        const map = styledPlainMap(raw, useMini).offsetToRaw
-        const rawStart = map[start] ?? raw.length
-        const rawEnd = map[end] ?? rawStart
+        // Fall back to the caret at the end of the field (not a whole-field wrap) when neither a
+        // live nor a remembered selection exists: the native colour dialog wipes the DOM selection.
+        const plainLength = styledPlainMap(raw, useMini).plain.length
+        const live = selectionPlainRange(el)
+        const saved = savedSelection.current
+        // Prefer a real (non-collapsed) selection: after the colour dialog the live selection is
+        // often a stray caret, in which case the remembered selection is the one to wrap.
+        const sel = live && live.end !== live.start ? live : saved && saved.end !== saved.start ? saved : (live ?? saved)
+        const start = sel ? Math.min(sel.start, sel.end) : plainLength
+        const end = sel ? Math.max(sel.start, sel.end) : plainLength
         const hasSelection = end > start
+        // Route through the tag-aware boundary helper so wrapping never splices into a tag's bytes.
+        const { rawStart, rawEnd } = styledRawRange(raw, start, end, useMini)
         const body = hasSelection ? raw.slice(rawStart, rawEnd) : fallbackText
-        const newRaw = raw.slice(0, rawStart) + opening + body + closing + raw.slice(rawEnd)
+        const newRaw = replaceStyledRange(raw, start, end, opening + body + closing, useMini)
         const caret = hasSelection ? end : start + styledPlainMap(fallbackText, useMini).plain.length
         commit(newRaw, caret)
       },
@@ -218,6 +249,7 @@ export function StyledEditor({ value, config, onChange, multiline = false, rows,
       style={{ '--editor-rows': rows ?? (multiline ? 3 : 1) } as CSSProperties}
       onBeforeInput={handleBeforeInput}
       onInput={handleInput}
+      onKeyDown={handleKeyDown}
       onFocus={() => {
         registerActiveEditor()
         rememberSelection()

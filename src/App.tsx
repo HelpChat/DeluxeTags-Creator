@@ -10,6 +10,7 @@ import { ImportModal } from './components/ImportModal'
 import { GeneratorModal } from './components/GeneratorModal'
 import { Hotkeys } from './components/Hotkeys'
 import { BulkIsland } from './components/BulkIsland'
+import { ConfirmProvider } from './components/ConfirmDialog'
 
 function Modals() {
   const { state, dispatch } = useApp()
@@ -58,7 +59,9 @@ function Builder() {
 export function App() {
   return (
     <AppProvider>
-      <Builder />
+      <ConfirmProvider>
+        <Builder />
+      </ConfirmProvider>
     </AppProvider>
   )
 }

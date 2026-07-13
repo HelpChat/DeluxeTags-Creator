@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state/store'
+import { PlaceholderPalette, type PlaceholderContext } from './PlaceholderPalette'
 
 interface FormatButton {
   node: JSX.Element
@@ -19,7 +20,7 @@ function keepSelection(event: React.MouseEvent) {
   event.preventDefault()
 }
 
-export function ColorHelper() {
+export function ColorHelper({ context = 'tag' }: { context?: PlaceholderContext }) {
   const { state, activeEditor } = useApp()
   const hexRef = useRef<HTMLInputElement>(null)
   const [gradientOpen, setGradientOpen] = useState(false)
@@ -33,8 +34,24 @@ export function ColorHelper() {
   }
 
   function applyHex(value: string) {
-    activeEditor.current?.applyWrapper(`<color:${value.toLowerCase()}>`, '</color>')
+    const hex = value.toLowerCase()
+    // Legacy mode has no <color> tag; insert the &#RRGGBB code the plugin understands instead.
+    if (useMini) activeEditor.current?.applyWrapper(`<color:${hex}>`, '</color>')
+    else activeEditor.current?.insertText(`&${hex}`)
   }
+
+  // Apply the colour once, on the native "change" event (fired when the picker closes), not on the
+  // continuous "input" events React's onChange maps to. Applying on every drag re-ran the wrapper
+  // after the selection had already collapsed, which spammed the fallback "Text" in each colour.
+  const applyHexRef = useRef(applyHex)
+  applyHexRef.current = applyHex
+  useEffect(() => {
+    const el = hexRef.current
+    if (!el) return
+    const handler = () => applyHexRef.current(el.value)
+    el.addEventListener('change', handler)
+    return () => el.removeEventListener('change', handler)
+  }, [])
 
   function applyGradient() {
     const start = (gradientStart.current?.value || '#55ffff').toLowerCase()
@@ -55,22 +72,18 @@ export function ColorHelper() {
         >
           Hex
         </button>
-        <input
-          ref={hexRef}
-          type="color"
-          className="mm-hex-input"
-          defaultValue="#55ffff"
-          onChange={(e) => applyHex(e.target.value)}
-        />
-        <button
-          type="button"
-          className="mm-fmt-btn"
-          title="gradient"
-          onMouseDown={keepSelection}
-          onClick={() => setGradientOpen((open) => !open)}
-        >
-          Gradient
-        </button>
+        <input ref={hexRef} type="color" className="mm-hex-input" defaultValue="#55ffff" />
+        {useMini && (
+          <button
+            type="button"
+            className="mm-fmt-btn"
+            title="gradient"
+            onMouseDown={keepSelection}
+            onClick={() => setGradientOpen((open) => !open)}
+          >
+            Gradient
+          </button>
+        )}
         {FORMATS.map((format) => (
           <button
             key={format.mm}
@@ -83,6 +96,7 @@ export function ColorHelper() {
             {format.node}
           </button>
         ))}
+        <PlaceholderPalette context={context} />
       </div>
       <div className="mm-gradient-panel" hidden={!gradientOpen}>
         <input ref={gradientStart} type="color" defaultValue="#55ffff" />

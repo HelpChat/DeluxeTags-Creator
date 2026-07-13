@@ -9,36 +9,13 @@ import {
   toLines,
   toSlotEntries,
 } from './util';
-import type { Category, Config, GuiItem, ModelDataComponent, Tag } from './types';
+import type { Category, Config, GuiItem, Tag } from './types';
 
 type AnyRecord = Record<string, any>;
 
 interface GuiItemOptions {
   text?: boolean;
   slots?: boolean;
-}
-
-export function normalizeModelDataComponent(value: AnyRecord = {}): ModelDataComponent {
-  return {
-    colors: toLines(value.colors),
-    flags: toLines(value.flags),
-    floats: toLines(value.floats),
-    strings: toLines(value.strings),
-  };
-}
-
-// Reads the optional resource-pack fields (item_model, model_data, model_data_component) off a
-// raw value onto a target. Shared by GUI items, tags, and categories so all three round-trip them.
-function normalizeAdvancedFields(value: AnyRecord, target: AnyRecord): void {
-  if (value.item_model != null && String(value.item_model).trim() !== '') {
-    target.item_model = String(value.item_model).trim();
-  }
-  if (value.model_data != null && String(value.model_data).trim() !== '') {
-    target.model_data = normalizeData(value.model_data, value.model_data);
-  }
-  if (isPlainObject(value.model_data_component)) {
-    target.model_data_component = normalizeModelDataComponent(value.model_data_component);
-  }
 }
 
 export function normalizeGuiItem(
@@ -63,7 +40,6 @@ export function normalizeGuiItem(
         : toSlotEntries(value.slot, defaults.slots || []);
   }
 
-  normalizeAdvancedFields(value, item);
   return item;
 }
 
@@ -83,7 +59,6 @@ export function normalizeCategory(identifier: string, value: AnyRecord = {}): Ca
     lore: toLines(value.lore, defaults.lore),
     gui_name: value.gui_name == null ? defaults.gui_name : String(value.gui_name),
   };
-  normalizeAdvancedFields(value, category);
   return category;
 }
 
@@ -102,7 +77,6 @@ export function normalizeTag(identifier: string, value: AnyRecord = {}): Tag {
         ? 'deluxetags.tag.' + identifier
         : String(value.permission),
   };
-  normalizeAdvancedFields(value, tag);
   return tag;
 }
 
@@ -268,28 +242,6 @@ export function createDefaultState(): {
   };
 }
 
-function serializeAdvancedFields(input: AnyRecord, target: AnyRecord): void {
-  if (input.item_model) {
-    target.item_model = input.item_model;
-  }
-  if (input.model_data !== undefined && input.model_data !== null && String(input.model_data).trim() !== '') {
-    target.model_data = asExportNumber(input.model_data);
-  }
-  const component = input.model_data_component;
-  if (isPlainObject(component)) {
-    const exported: AnyRecord = {};
-    for (const key of ['colors', 'flags', 'floats', 'strings']) {
-      const lines = toLines(component[key]).filter((line) => line.trim() !== '');
-      if (lines.length > 0) {
-        exported[key] = lines;
-      }
-    }
-    if (Object.keys(exported).length > 0) {
-      target.model_data_component = exported;
-    }
-  }
-}
-
 export function serializeGuiItem(item: AnyRecord, options: GuiItemOptions & { preferSlot?: boolean } = {}): AnyRecord {
   const output: AnyRecord = {
     material: normalizeMaterial(item.material, ''),
@@ -307,7 +259,6 @@ export function serializeGuiItem(item: AnyRecord, options: GuiItemOptions & { pr
       output.slots = slots;
     }
   }
-  serializeAdvancedFields(item, output);
   return output;
 }
 
@@ -326,7 +277,6 @@ export function serializeCategories(config: AnyRecord): AnyRecord {
       lore: toLines(category.lore),
       gui_name: String(category.gui_name ?? ''),
     };
-    serializeAdvancedFields(category, serialized);
     output[identifier] = serialized;
   }
   return output;
@@ -353,7 +303,6 @@ export function serializeTags(config: AnyRecord): AnyRecord {
           ? String(tag.permission)
           : 'deluxetags.tag.' + identifier,
     };
-    serializeAdvancedFields(tag, serialized);
     output[identifier] = serialized;
   }
   return output;

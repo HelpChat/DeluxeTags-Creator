@@ -72,6 +72,26 @@ export function selectableCategories(config: AnyRecord, preview: AnyRecord): Any
   return visibleReal;
 }
 
+/**
+ * Categories to render on the categories screen in the builder. Unlike selectableCategories (which
+ * hides empty categories to match the in-game GUI), this includes categories with no tags so a
+ * newly-added, still-empty category is visible and editable.
+ */
+export function displayCategories(config: AnyRecord): AnyRecord[] {
+  const real = sortedCategories(config).filter((category) => !category.allCategory);
+  if (real.length >= 2) {
+    const allCategory = sortedCategories(config).find((category) => category.allCategory);
+    if (allCategory) {
+      return [...real, allCategory].sort(
+        (a, b) =>
+          Number.parseInt(a.order, 10) - Number.parseInt(b.order, 10) ||
+          a.identifier.localeCompare(b.identifier),
+      );
+    }
+  }
+  return real;
+}
+
 export function pageItems<T>(items: T[], page: unknown, pageSize: number): T[] {
   const safePage = Math.max(1, Number.parseInt(page as string, 10) || 1);
   const start = (safePage - 1) * pageSize;
@@ -93,8 +113,8 @@ export function buildContext(config: AnyRecord, preview: AnyRecord, extra: AnyRe
     currentTag: current,
     amount,
     categoryAmount,
-    // When false, placeholders are left as their literal %name% text (raw mode).
-    parse: preview.parsePlaceholders !== false,
+    // Placeholders resolve to sample values only in parsed mode and when placeholder parsing is on.
+    parse: preview.parsePlaceholders !== false && preview.resolvePlaceholders !== false,
     ...extra,
   };
 }
@@ -177,12 +197,24 @@ export function buildPreview(config: Config, previewInput: Preview = DEFAULT_PRE
   );
   const tagSlots = parseSlotList(config.gui?.tag_slots || [], slots.length).slots;
   const categories = selectableCategories(config, preview);
+  // The auto screen mirrors the plugin (categories GUI only when 2+ non-empty categories exist), but
+  // the categories screen itself lists every category so empty ones stay editable in the builder.
+  const screenCategories = displayCategories(config);
   const shouldShowCategoryMenu =
     preview.screen === 'categories' || (preview.screen === 'auto' && categories.length >= 2);
   const pageSize = Math.max(1, tagSlots.length);
 
   if (shouldShowCategoryMenu) {
-    const pages = Math.ceil(categories.length / pageSize) || 1;
+    // Categories get their own slot region. tag_slots shrinks to the current tag count, so reusing
+    // it would cut categories off (or push them onto a second page) when there are more categories
+    // than tags. Extend the region contiguously from its start so every category has a home.
+    const catBase = tagSlots.length ? Math.min(...tagSlots) : 0;
+    const categorySlots =
+      tagSlots.length >= screenCategories.length
+        ? tagSlots
+        : Array.from({ length: screenCategories.length }, (_, i) => catBase + i);
+    const catPageSize = Math.max(1, categorySlots.length);
+    const pages = Math.ceil(screenCategories.length / catPageSize) || 1;
     const page = clampPage(preview.page, pages);
     const hasNextPage = page < pages;
     const context = buildContext(config, preview, {
@@ -191,8 +223,8 @@ export function buildPreview(config: Config, previewInput: Preview = DEFAULT_PRE
       categoryIdentifier: 'all',
     });
     const title = truncateTitle(replacePlaceholders(config.gui.name, context, config));
-    for (const [index, category] of pageItems(categories, page, pageSize).entries()) {
-      const slot = tagSlots[index];
+    for (const [index, category] of pageItems(screenCategories, page, catPageSize).entries()) {
+      const slot = categorySlots[index];
       if (slot == null || slot >= slots.length) {
         continue;
       }

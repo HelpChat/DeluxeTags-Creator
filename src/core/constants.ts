@@ -327,4 +327,5 @@ export const DEFAULT_PREVIEW = Object.freeze({
   showLockedTags: true,
   iconTemplate: DEFAULT_ICON_TEMPLATE,
   parsePlaceholders: true,
+  resolvePlaceholders: true,
 }) as unknown as Preview;

@@ -10,20 +10,6 @@
   --minecraft-font: "PixelCraft";
 }
 
-/* A metric-tightened copy of the pixel font, used only in the styled editors. PixelCraft declares an
-   oversized line box (~2.3x em) which Chrome paints the text-selection highlight over regardless of
-   line-height, so the selection looked far taller than the glyphs. Overriding ascent/descent shrinks
-   the line box to hug the text. Same glyphs, same size, just tighter vertical metrics. */
-@font-face {
-  font-family: "PixelCraftTight";
-  font-style: normal;
-  font-weight: 400;
-  src: local("PixelCraft"), url("https://fonts.cdnfonts.com/s/113877/pixelcraft.woff") format("woff");
-  ascent-override: 92%;
-  descent-override: 24%;
-  line-gap-override: 0%;
-}
-
 html {
   min-height: 100%;
 }
@@ -113,9 +99,7 @@ textarea {
   border-radius: 5px;
   background: #131313;
   color: #f2f2f2;
-  /* Less top than bottom padding so the pixel-font value (which draws low in its line box) sits
-     vertically centered rather than looking top-heavy. Same overall height as 8px symmetric. */
-  padding: 5px 9px 11px;
+  padding: 8px 9px;
   outline: none;
 }
 
@@ -151,25 +135,14 @@ textarea {
   color: #f2f2f2;
   padding: 8px 9px;
   outline: none;
-  /* Tighter than the old 1.5 so the text-selection highlight hugs the glyphs instead of drawing a
-     tall box (the pixel font already carries a lot of vertical space in its line box). */
-  line-height: 1.3;
+  line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
 }
 
 .styled-editor.multiline {
-  min-height: calc((var(--editor-rows, 3) * 1.3em) + 18px);
-}
-
-/* Use the metric-tightened face inside the editors so the selection highlight hugs the text. The id
-   and modal prefixes beat the global `* { font-family: PixelCraft !important }` rules. */
-#builder-app .styled-editor,
-#builder-app .styled-editor *,
-.modal-backdrop .styled-editor,
-.modal-backdrop .styled-editor * {
-  font-family: "PixelCraftTight", var(--minecraft-font) !important;
+  min-height: calc((var(--editor-rows, 3) * 1.5em) + 18px);
 }
 
 .styled-editor:empty::before {
@@ -204,7 +177,7 @@ code {
 #builder-app {
   height: calc(100vh - 44px);
   display: grid;
-  grid-template-columns: 1fr 380px;
+  grid-template-columns: 1fr 320px;
   overflow: hidden;
 }
 
@@ -381,9 +354,6 @@ code {
   position: absolute;
   inset: 15%;
   min-height: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 1px dashed #3a3a3a;
   border-radius: 6px;
   background: transparent;
@@ -404,6 +374,7 @@ code {
   display: none;
 }
 
+.item-icon:not(.failed) + .item-fallback-sm,
 .ip-img:not(.failed) + .ip-fallback {
   display: none;
 }
@@ -505,16 +476,6 @@ code {
   display: block;
 }
 
-/* While dragging, suppress the hover item preview and hover highlight so the whole grid does not
-   light up under the cursor. The dashed drop-target outline still shows where the item will land. */
-.inventory-grid.dragging .mc-slot:hover .item-tooltip {
-  display: none;
-}
-
-.inventory-grid.dragging .mc-slot:hover {
-  border-color: #2a2a2a;
-}
-
 /* ── Page nav ─────────────────────────────────────────────── */
 
 .page-nav {
@@ -531,10 +492,6 @@ code {
 
 .page-nav button {
   min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
   padding: 4px 9px;
   font-size: 12px;
   background: #242424;
@@ -548,14 +505,6 @@ code {
 .page-nav span {
   min-width: 70px;
   text-align: center;
-  /* 1px down to sit dead-centre between the arrows after the tightened face recentres the glyph. */
-  transform: translateY(1px);
-}
-
-/* Use the metric-tightened pixel face so the label centers vertically with the arrow icons rather
-   than sitting low (the normal face's line box is ~2.3x the text). Beats the global pixel-font rule. */
-#builder-app .page-nav span {
-  font-family: "PixelCraftTight", var(--minecraft-font) !important;
 }
 
 /* ── Context panel — shared ──────────────────────────────── */
@@ -579,9 +528,6 @@ code {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* The pixel-font header text draws its glyphs low in the line box, so nudge the icon down to sit
-     on the same visual line rather than floating above the letters. */
-  transform: translateY(3px);
 }
 
 .ctx-header-icon svg {
@@ -623,536 +569,11 @@ code {
 .ctx-delete-btn {
   flex-shrink: 0;
   min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
   padding: 5px 9px;
   font-size: 11px;
   background: #2a1818;
   border-color: #4a2727;
   color: #e48a8a;
-}
-
-/* Keyboard focus ring on buttons (the original only styled input focus). */
-button:focus-visible {
-  outline: 2px solid #5d8a5d;
-  outline-offset: 1px;
-}
-
-/* Small UI control buttons use a normal font so their labels center properly. The pixel font draws
-   glyphs low in the line box. These selectors are id-prefixed to beat the global `#builder-app *`
-   and `.modal-backdrop *` pixel-font !important rules. */
-/* All UI buttons and their labels use a normal font so the text centers (the PixelCraft font draws
-   glyphs low in the line box). The id prefixes beat the global pixel-font !important rules. */
-#builder-app button,
-#builder-app button *,
-#builder-app .mm-helper-label,
-.modal-backdrop button,
-.modal-backdrop button *,
-#app-nav button,
-.bulk-island,
-.bulk-island button,
-.bulk-island select {
-  font-family: ui-sans-serif, system-ui, 'Segoe UI', Arial, sans-serif !important;
-}
-
-/* Keep the pixel font for actual Minecraft text, even inside buttons (e.g. generator previews). */
-#builder-app .mc-text,
-#builder-app .mc-text *,
-.modal-backdrop .mc-text,
-.modal-backdrop .mc-text * {
-  font-family: var(--minecraft-font) !important;
-}
-
-/* Native dropdown option lists cannot be padding-centered, so render their text in a normal font
-   (the pixel font draws each option's text low in its row). */
-#builder-app option,
-.modal-backdrop option {
-  font-family: ui-sans-serif, system-ui, 'Segoe UI', Arial, sans-serif !important;
-}
-
-.preview-mode button,
-.placeholder-chip,
-.mm-fmt-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-}
-
-/* Parsed / Raw preview mode toggle. */
-.preview-mode {
-  display: inline-flex;
-  flex-shrink: 0;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.preview-mode button {
-  min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 4px 10px;
-  font-size: 11px;
-  background: #161616;
-  border: none;
-  border-radius: 0;
-  color: #888;
-}
-
-.preview-mode button.active {
-  background: #2c3650;
-  color: #c7d8ff;
-}
-
-/* Standalone toggle: resolve placeholders to sample values in the preview. */
-.ph-toggle {
-  min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 4px 10px;
-  font-size: 11px;
-  background: #161616;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  color: #888;
-  cursor: pointer;
-}
-
-.ph-toggle:hover {
-  color: #bbb;
-  border-color: #3a3a3a;
-}
-
-.ph-toggle.active {
-  background: #2c3650;
-  border-color: #3a4a6a;
-  color: #c7d8ff;
-}
-
-/* Tags / Categories view switcher in the inventory header. */
-.view-switcher {
-  display: inline-flex;
-  flex-shrink: 0;
-  align-items: center;
-  gap: 6px;
-}
-
-.view-switcher button {
-  min-height: unset;
-  line-height: 1;
-  padding: 4px 10px;
-  font-size: 11px;
-  background: #161616;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  color: #888;
-}
-
-.add-category-btn {
-  min-height: unset;
-  line-height: 1;
-  padding: 4px 10px;
-  font-size: 11px;
-  white-space: nowrap;
-  background: #1b3a1b;
-  border: 1px solid #2f5a2f;
-  border-radius: 6px;
-  color: #b7e6b7;
-  cursor: pointer;
-}
-
-.add-category-btn:hover {
-  background: #244d24;
-  color: #d4f5d4;
-}
-
-.view-switcher button.active {
-  background: #2c3650;
-  border-color: #3a4560;
-  color: #c7d8ff;
-}
-
-/* Custom dropdown (replaces the native <select> so it can be sized and skinned). */
-.custom-select {
-  position: relative;
-  display: inline-flex;
-}
-
-.custom-select-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  min-height: unset;
-  line-height: 1;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: #161616;
-  border: 1px solid #2c2c2c;
-  border-radius: 6px;
-  color: #bbb;
-  cursor: pointer;
-}
-
-.custom-select-trigger:hover:not(:disabled) {
-  border-color: #3a3a3a;
-  color: #ddd;
-}
-
-.custom-select-trigger:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.custom-select-value {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.custom-select-value.placeholder {
-  color: #7a7a7a;
-}
-
-.custom-select-caret {
-  flex-shrink: 0;
-  opacity: 0.65;
-}
-
-.custom-select-menu {
-  position: absolute;
-  z-index: 40;
-  top: calc(100% + 5px);
-  left: 0;
-  margin: 0;
-  padding: 4px;
-  min-width: 100%;
-  max-height: 260px;
-  overflow-y: auto;
-  list-style: none;
-  background: #141414;
-  border: 1px solid #343434;
-  border-radius: 6px;
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
-}
-
-.custom-select-menu.align-right {
-  left: auto;
-  right: 0;
-}
-
-/* Open upward for triggers near the bottom of the viewport (e.g. the bulk island). */
-.custom-select-menu.drop-up {
-  top: auto;
-  bottom: calc(100% + 5px);
-}
-
-.custom-select-option {
-  padding: 5px 9px;
-  font-size: 11px;
-  border-radius: 4px;
-  color: #cfcfcf;
-  white-space: nowrap;
-  cursor: pointer;
-}
-
-.custom-select-option:hover {
-  background: #262626;
-}
-
-.custom-select-option.selected {
-  background: #2b3a55;
-  color: #cfe0ff;
-}
-
-/* Inside the inventory area the pixel font is forced; use the tightened face so the trigger and
-   options centre vertically instead of sitting low. */
-#builder-app .custom-select,
-#builder-app .custom-select * {
-  font-family: "PixelCraftTight", var(--minecraft-font) !important;
-}
-
-.switcher-select .custom-select-trigger {
-  min-width: 96px;
-}
-
-/* Full-width dropdown used as a form field in the sidebar, matching the text inputs. */
-.field-select {
-  display: flex;
-  width: 100%;
-}
-
-.field-select .custom-select-trigger {
-  width: 100%;
-  padding: 8px 9px;
-  background: #131313;
-  border-color: #303030;
-  border-radius: 5px;
-  color: #f2f2f2;
-}
-
-.field-select .custom-select-value {
-  flex: 1 1 auto;
-  text-align: left;
-}
-
-/* Clickable title preview (shows the parsed title; click to edit). */
-.title-display {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: text;
-  padding: 2px 5px;
-  border: 1px solid transparent;
-  border-radius: 4px;
-}
-
-.title-display:hover {
-  border-color: #2c2c2c;
-}
-
-/* Editable menu title in the inventory header. */
-.styled-editor.title-editor {
-  flex: 1 1 auto;
-  min-width: 0;
-  min-height: 0;
-  border: 1px solid transparent;
-  background: transparent;
-  padding: 2px 5px;
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.5;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.styled-editor.title-editor:hover {
-  border-color: #2c2c2c;
-}
-
-.styled-editor.title-editor:focus {
-  border-color: #3a3a3a;
-  background: #131313;
-  white-space: normal;
-}
-
-/* Compact placeholder inserter: an icon button in the field toolbar that opens a popover of chips. */
-.placeholder-menu {
-  position: relative;
-  display: inline-flex;
-}
-
-.placeholder-fmt-btn svg {
-  flex-shrink: 0;
-}
-
-.placeholder-popover {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 6px);
-  /* Anchor to the button's right edge so the popover opens inward and never overflows the panel. */
-  right: 0;
-  min-width: 200px;
-  max-width: 300px;
-  padding: 10px;
-  background: #141922;
-  border: 1px solid #2c3650;
-  border-radius: 8px;
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-}
-
-.placeholder-popover .placeholder-chips {
-  margin-top: 0;
-}
-
-.placeholder-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 8px;
-}
-
-.placeholder-chip {
-  min-height: unset;
-  padding: 4px 8px;
-  font-size: 11px;
-  background: #1c2333;
-  border-color: #2c3650;
-  color: #9db4e0;
-  border-radius: 10px;
-}
-
-.placeholder-chip:hover {
-  background: #243150;
-  color: #c7d8ff;
-}
-
-/* Multi-select highlight on slots (distinct from the gold inspected outline). */
-.mc-slot.marked {
-  outline: 2px solid #5aa0e0;
-  outline-offset: -2px;
-  box-shadow: 0 0 0 2px rgba(90, 160, 224, 0.25);
-}
-
-/* Drop target while dragging: a dashed cyan outline showing where the item will land. */
-.mc-slot.drop-target {
-  outline: 2px dashed #58d6d6;
-  outline-offset: -2px;
-  box-shadow: 0 0 0 2px rgba(88, 214, 214, 0.3);
-}
-
-/* Static-item slot picking: a banner, clickable slots, and a green outline on assigned slots. */
-.pick-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  background: #17212e;
-  border: 1px solid #2c3650;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #9db4e0;
-}
-
-.pick-banner span {
-  line-height: 1.4;
-}
-
-.inventory-grid.picking .mc-slot {
-  cursor: pointer;
-}
-
-.inventory-grid.picking .mc-slot.empty {
-  outline: 2px dashed #3a4a63;
-  outline-offset: -2px;
-}
-
-.mc-slot.pick-assigned {
-  outline: 2px solid #5cd65c;
-  outline-offset: -2px;
-  box-shadow: 0 0 0 2px rgba(92, 214, 92, 0.28);
-}
-
-/* Slots field with an inline "Pick on grid" toggle button. */
-.slots-row {
-  display: flex;
-  align-items: stretch;
-  gap: 6px;
-}
-
-.slots-row input {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.slots-row button {
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.slots-row button.active {
-  background: #2b6f2b;
-  border-color: #3a8a3a;
-  color: #eaffea;
-}
-
-/* Floating bulk-actions island. */
-.bulk-island {
-  position: fixed;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  z-index: 1150;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 10px 16px;
-  border: 1px solid #3a3a3a;
-  border-radius: 14px;
-  background: #1d1d1d;
-  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.55);
-}
-
-.bulk-count {
-  font-size: 13px;
-  color: #e6e6e6;
-  white-space: nowrap;
-}
-
-.bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.bulk-actions button,
-.bulk-actions select {
-  min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 5px 10px;
-  font-size: 12px;
-  background: #262626;
-  border-color: #3a3a3a;
-}
-
-.bulk-actions button:disabled,
-.bulk-actions select:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-.bulk-actions button:hover {
-  background: #303030;
-}
-
-.bulk-actions button.danger {
-  background: #2a1818;
-  border-color: #4a2727;
-  color: #e48a8a;
-}
-
-.bulk-hint {
-  font-size: 11px;
-  color: #6a6a6a;
-  white-space: nowrap;
-}
-
-@media (max-width: 720px) {
-  .bulk-hint {
-    display: none;
-  }
-}
-
-.ctx-clone-btn {
-  flex-shrink: 0;
-  min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  padding: 5px 8px;
-  background: #1c1c1c;
-  border-color: #363636;
-  color: #9a9a9a;
-}
-
-.ctx-clone-btn:hover {
-  color: #d8d8d8;
-  border-color: #4a4a4a;
 }
 
 .ctx-delete-btn:hover:not(:disabled) {
@@ -1260,12 +681,6 @@ button:focus-visible {
   color: #d8d8d8;
 }
 
-.slot-action-btn.selected {
-  background: #1e2e1e;
-  border-color: #3d5e3d;
-  color: #8ed68e;
-}
-
 .slot-action-btn.primary-action {
   grid-column: 1 / -1;
   flex-direction: row;
@@ -1296,6 +711,65 @@ button:focus-visible {
   font-weight: 600;
   text-align: center;
   line-height: 1.2;
+}
+
+/* ── Tag preview banner ──────────────────────────────────── */
+
+.tag-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  border: 1px solid #2e3a2e;
+  border-radius: 7px;
+  background: #111911;
+  min-height: 42px;
+}
+
+.tag-banner-preview {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--minecraft-font);
+  font-size: 20px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-banner-icon {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #3f3f3f;
+  border-radius: 5px;
+  background: #1a1a1a;
+}
+
+.tag-banner-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.tag-banner-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.item-fallback-sm {
+  color: #9fc79f;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--minecraft-font);
+  line-height: 1;
 }
 
 /* ── Form field helpers ──────────────────────────────────── */
@@ -1365,49 +839,6 @@ button:focus-visible {
   margin-bottom: 8px;
 }
 
-/* Field header row: the label plus its Raw/Parsed editor toggle. */
-.ctx-field-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ctx-field-head .ctx-section-label {
-  margin-bottom: 8px;
-}
-
-.field-raw-toggle {
-  min-height: unset;
-  padding: 2px 8px;
-  font-size: 10px;
-  line-height: 1;
-  color: #9db4e0;
-  background: #1c2333;
-  border: 1px solid #2c3650;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.field-raw-toggle:hover {
-  background: #243150;
-  color: #c7d8ff;
-}
-
-.field-raw-toggle.active {
-  background: #2b6f2b;
-  border-color: #3a8a3a;
-  color: #eaffea;
-}
-
-/* Raw source editor: a plain box showing the literal tags, in a readable monospace font. */
-#builder-app .raw-editor {
-  font-family: ui-monospace, "SFMono-Regular", "Consolas", "Liberation Mono", monospace !important;
-  font-size: 12px;
-  line-height: 1.4;
-  resize: vertical;
-}
-
 /* ── MiniMessage / color helper ──────────────────────────── */
 
 .mm-helper {
@@ -1429,6 +860,33 @@ button:focus-visible {
   margin-bottom: 5px;
 }
 
+.mm-color-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-bottom: 5px;
+}
+
+.mm-swatch {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.5);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s, box-shadow 0.1s;
+  padding: 0;
+  min-height: unset;
+  background: var(--swatch-color);
+}
+
+.mm-swatch:hover {
+  transform: scale(1.35);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  position: relative;
+  z-index: 2;
+}
+
 .mm-format-row {
   display: flex;
   gap: 3px;
@@ -1438,25 +896,13 @@ button:focus-visible {
 
 .mm-fmt-btn {
   min-height: unset;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 4px 8px;
+  padding: 2px 7px;
   font-size: 11px;
   background: #1e1e1e;
   border-color: #2a2a2a;
   color: #999;
   border-radius: 4px;
-  line-height: 1;
-}
-
-/* Glyph buttons render their icon as a centered block so it does not sit low. */
-.slot-add svg,
-.page-nav button svg,
-.ctx-delete-btn svg,
-.ctx-clone-btn svg,
-.modal-close-btn svg {
-  display: block;
+  line-height: 1.4;
 }
 
 .mm-fmt-btn:hover {
@@ -1592,7 +1038,7 @@ button:focus-visible {
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.72);
-  z-index: 1200;
+  z-index: 900;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1713,8 +1159,7 @@ button:focus-visible {
   display: block;
   color: #555;
   font-size: 11px;
-  margin-top: 3px;
-  line-height: 1.35;
+  margin-top: 1px;
 }
 
 .chat-preview {
@@ -1725,132 +1170,6 @@ button:focus-visible {
   font-family: var(--minecraft-font);
   font-size: 13px;
   margin-top: 6px;
-}
-
-/* ── Tag generator ───────────────────────────────────────── */
-
-/* The pixel font sits hard against the left edge, so give the text input a touch more room. */
-.gen-text {
-  padding-left: 12px;
-}
-
-/* A compact preview line so it does not tower over the rest of the panel. */
-.gen-preview {
-  display: flex;
-  align-items: center;
-  min-height: 38px;
-  padding: 6px 12px;
-  font-size: 19px;
-  line-height: 1;
-  margin-top: 12px;
-}
-
-.gen-custom-toggle {
-  display: block;
-  width: 100%;
-  margin-top: 10px;
-  padding: 9px 12px;
-  border: 1px solid #303030;
-  border-radius: 6px;
-  background: #1a1a1a;
-  color: #b8b8b8;
-  font-size: 12px;
-  cursor: pointer;
-  transition: background 0.1s, border-color 0.1s, color 0.1s;
-}
-
-.gen-custom-toggle:hover {
-  background: #222;
-  border-color: #424242;
-  color: #d8d8d8;
-}
-
-.gen-custom-toggle.active {
-  background: #1e2e1e;
-  border-color: #3d5e3d;
-  color: #8ed68e;
-}
-
-.gradient-colors {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.gradient-colors .swatch {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid #2a2a2a;
-  border-radius: 6px;
-  background: #161616;
-  cursor: pointer;
-}
-
-.gradient-colors .swatch > span {
-  font-size: 11px;
-  color: #888;
-  min-width: 30px;
-}
-
-.gradient-colors .swatch input[type="color"] {
-  width: 34px;
-  height: 26px;
-  min-height: 0;
-  padding: 0;
-  border: 1px solid #3a3a3a;
-  border-radius: 4px;
-  background: none;
-  cursor: pointer;
-}
-
-.gradient-colors .swatch input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 2px;
-}
-
-.gradient-colors .swatch input[type="color"]::-webkit-color-swatch {
-  border: none;
-  border-radius: 3px;
-}
-
-.gradient-colors .swatch code {
-  font-size: 11px;
-  color: #aaa;
-  text-transform: uppercase;
-}
-
-/* Preset packs laid out as a row: label and previews on the left, add button on the right. */
-.pack-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 10px 12px;
-  margin: 0 0 8px;
-  border: 1px solid #272727;
-  border-radius: 7px;
-  background: #181818;
-}
-
-.pack-info {
-  min-width: 0;
-}
-
-.pack-info .settings-group-label {
-  margin-bottom: 6px;
-}
-
-.pack-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.pack-add {
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* ── Toast messages ──────────────────────────────────────── */
@@ -1870,11 +1189,8 @@ button:focus-visible {
   background: rgba(30,30,30,0.94);
   color: #d0d0d0;
   padding: 8px 14px;
-  /* Tightened pixel face so the message sits vertically centred in the toast instead of low
-     (the normal face's line box is ~2.3x the text). !important beats the global pixel-font rule. */
-  font-family: "PixelCraftTight", var(--minecraft-font) !important;
+  font-family: var(--minecraft-font);
   font-size: 12px;
-  line-height: 1.4;
   margin: 4px auto;
   list-style: none;
   border-radius: 5px;

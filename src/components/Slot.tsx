@@ -9,8 +9,15 @@ interface SlotProps {
   marked: boolean
   config: Config
   iconTemplate: string
+  /** True while a drag is hovering this slot, to show where the item will land. */
+  dropTarget?: boolean
+  /** True while the grid is in static-item slot-picking mode. */
+  picking?: boolean
+  /** True when this slot is assigned to the static item being picked for. */
+  assigned?: boolean
   onSelect(index: number, event: React.MouseEvent): void
   onDragStart(index: number): void
+  onDragEnter(index: number): void
   onDrop(index: number): void
 }
 
@@ -37,14 +44,16 @@ function ItemTooltip({ item, config }: { item: PreviewItem; config: Config }) {
   )
 }
 
-export function Slot({ item, index, inspected, marked, config, iconTemplate, onSelect, onDragStart, onDrop }: SlotProps) {
+export function Slot({ item, index, inspected, marked, config, iconTemplate, dropTarget, picking, assigned, onSelect, onDragStart, onDragEnter, onDrop }: SlotProps) {
+  const pickClass = `${picking ? ' picking' : ''}${assigned ? ' pick-assigned' : ''}`
   if (!item) {
     return (
       <div
-        className={`mc-slot empty${inspected ? ' inspected' : ''}${marked ? ' marked' : ''}`}
+        className={`mc-slot empty${inspected ? ' inspected' : ''}${marked ? ' marked' : ''}${dropTarget ? ' drop-target' : ''}${pickClass}`}
         data-slot={index}
         data-empty="true"
         onClick={(e) => onSelect(index, e)}
+        onDragEnter={() => onDragEnter(index)}
         onDragOver={(e) => {
           e.preventDefault()
           e.dataTransfer.dropEffect = 'move'
@@ -72,6 +81,9 @@ export function Slot({ item, index, inspected, marked, config, iconTemplate, onS
     item.canSelect ? '' : 'locked',
     inspected ? 'inspected' : '',
     marked ? 'marked' : '',
+    dropTarget ? 'drop-target' : '',
+    picking ? 'picking' : '',
+    assigned ? 'pick-assigned' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -89,6 +101,7 @@ export function Slot({ item, index, inspected, marked, config, iconTemplate, onS
         e.dataTransfer.setData('text/plain', String(index))
         onDragStart(index)
       }}
+      onDragEnter={() => onDragEnter(index)}
       onDragOver={(e) => {
         e.preventDefault()
         e.dataTransfer.dropEffect = 'move'

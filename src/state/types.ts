@@ -31,6 +31,11 @@ export interface AppState {
   /** Last imported or pasted YAML, retained so the import modal can show it again. */
   yamlDraft: string
   yamlError: string | null
+  /**
+   * When set, the grid is in "pick slots" mode for this static GUI item: clicking slots toggles
+   * them in that item's slot list instead of selecting. UI-only, so it is not part of undo history.
+   */
+  slotPick: string | null
 }
 
 /** A history entry snapshots only the config (config edits are undoable). */
@@ -64,6 +69,8 @@ export type Action =
   | { type: 'add-tag-at-slot'; slot: number }
   | { type: 'add-category-at-slot'; slot: number }
   | { type: 'set-static-at-slot'; key: string; slot: number }
+  | { type: 'toggle-static-slot'; key: string; slot: number }
+  | { type: 'set-slot-pick'; key: string | null }
   | { type: 'clone-tag'; id: string }
   | { type: 'clone-category'; id: string }
   | { type: 'paste-entries'; entries: ClipboardEntry[] }
@@ -75,6 +82,7 @@ export type Action =
   | { type: 'preview-next' }
   | { type: 'set-active-tag'; id: string }
   | { type: 'import'; config: Config; yamlDraft: string }
+  | { type: 'reset' }
   | { type: 'open-modal'; modal: ModalKind }
   | { type: 'close-modal' }
   | { type: 'toggle-minimessage'; value: boolean }

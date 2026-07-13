@@ -1,16 +1,14 @@
 import { useState } from 'react'
-import { iconCandidates } from '../core'
 import { useApp } from '../state/store'
 import { categoryIds, tagIds } from '../state/operations'
-import { AdvancedFields } from './AdvancedFields'
 import { EditorField } from './EditorField'
 import { ItemPicker } from './ItemPicker'
-import { MaterialIcon } from './MaterialIcon'
-import { McText } from './McText'
-import { PlaceholderPalette } from './PlaceholderPalette'
+import { Select } from './Select'
+import { useConfirm } from './ConfirmDialog'
 
 export function TagEditor({ tagId }: { tagId: string }) {
   const { state, dispatch, toast } = useApp()
+  const confirm = useConfirm()
   const config = state.config
   const tag = config.deluxetags[tagId]
   const [renameValue, setRenameValue] = useState(tagId)
@@ -20,7 +18,6 @@ export function TagEditor({ tagId }: { tagId: string }) {
   const setPath = (key: string, value: unknown) => dispatch({ type: 'set-path', path: `${base}.${key}`, value })
   const cats = categoryIds(config, false)
   const descVal = Array.isArray(tag.description) ? tag.description.join('\n') : String(tag.description ?? '')
-  const candidates = iconCandidates(tag.item || 'NAME_TAG', state.preview.iconTemplate)
   const unlocked = state.preview.unlockedTags[tagId] !== false
 
   function setUnlocked(value: boolean) {
@@ -30,12 +27,16 @@ export function TagEditor({ tagId }: { tagId: string }) {
     }
   }
 
-  function handleDelete() {
+  async function handleDelete() {
     if (tagIds(config).length <= 1) {
       toast('Cannot delete the last tag.', true)
       return
     }
-    dispatch({ type: 'delete-tag', id: tagId })
+    const ok = await confirm({
+      title: 'Delete tag?',
+      message: `Delete the tag "${tagId}"? You can undo this with Ctrl Z.`,
+    })
+    if (ok) dispatch({ type: 'delete-tag', id: tagId })
   }
 
   function handleRename() {
@@ -61,10 +62,7 @@ export function TagEditor({ tagId }: { tagId: string }) {
           </svg>
         </div>
         <div className="ctx-header-text">
-          <strong>
-            <McText raw={tag.tag || tagId} config={config} />
-          </strong>
-          <small>{tagId}</small>
+          <strong>{tagId}</strong>
         </div>
         <button type="button" className="ctx-clone-btn" title="Duplicate tag (Ctrl+D)" onClick={() => dispatch({ type: 'clone-tag', id: tagId })}>
           <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
@@ -80,20 +78,12 @@ export function TagEditor({ tagId }: { tagId: string }) {
       </div>
 
       <div className="ctx-body">
-        <div className="tag-banner">
-          <div className="tag-banner-preview">
-            <McText raw={tag.tag || '&7[&fTag&7]'} config={config} />
-          </div>
-          <div className="tag-banner-icon">
-            <MaterialIcon material={tag.item} candidates={candidates} imgClass="item-icon" fallbackClass="item-fallback-sm" />
-          </div>
-        </div>
-
-        <EditorField label="Tag Text" value={tag.tag} config={config} placeholder="&7[&eVIP&7]" onChange={(raw) => setPath('tag', raw)} />
+        <EditorField label="Tag Text" value={tag.tag} config={config} context="tag" placeholder="&7[&eVIP&7]" onChange={(raw) => setPath('tag', raw)} />
         <EditorField
           label="Display Name"
           value={tag.displayname}
           config={config}
+          context="tag"
           placeholder="&6Tag: %deluxetags_identifier%"
           onChange={(raw) => setPath('displayname', raw)}
         />
@@ -101,12 +91,11 @@ export function TagEditor({ tagId }: { tagId: string }) {
           label="Description"
           value={descVal}
           config={config}
+          context="tag"
           multiline
           rows={3}
           onChange={(raw) => setPath('description', raw.split('\n'))}
         />
-
-        <PlaceholderPalette />
 
         <div className="ctx-section">
           <span className="ctx-section-label">Item</span>
@@ -127,8 +116,8 @@ export function TagEditor({ tagId }: { tagId: string }) {
           <span className="ctx-section-label">Preview Lock</span>
           <div className="settings-toggle-row">
             <label className="settings-toggle-label" htmlFor={`lock-${tagId}`}>
-              Unlocked in preview
-              <small>Lock to preview how this tag looks for players without permission.</small>
+              Show as unlocked
+              <small>Preview this tag as a player who has permission. Turn off to preview the locked look.</small>
             </label>
             <input
               id={`lock-${tagId}`}
@@ -151,20 +140,17 @@ export function TagEditor({ tagId }: { tagId: string }) {
 
         <div className="ctx-section">
           <span className="ctx-section-label">Category</span>
-          <select value={tag.category} onChange={(e) => setPath('category', e.target.value)}>
-            {cats.map((id) => (
-              <option key={id} value={id}>
-                {id}
-              </option>
-            ))}
-            {cats.includes(tag.category) ? null : <option value={tag.category}>{tag.category}</option>}
-          </select>
+          <Select
+            ariaLabel="Category"
+            className="field-select"
+            value={tag.category}
+            options={(cats.includes(tag.category) ? cats : [...cats, tag.category]).map((id) => ({ value: id, label: id }))}
+            onChange={(value) => setPath('category', value)}
+          />
         </div>
 
-        <AdvancedFields item={tag as unknown as Record<string, unknown>} setPath={setPath} />
-
         <div className="ctx-section">
-          <span className="ctx-section-label">Rename ID</span>
+          <span className="ctx-section-label">Unique Tag ID</span>
           <div className="rename-row">
             <input type="text" value={renameValue} placeholder={tagId} onChange={(e) => setRenameValue(e.target.value)} />
             <button type="button" onClick={handleRename}>

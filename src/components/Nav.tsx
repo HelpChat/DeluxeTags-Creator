@@ -1,8 +1,22 @@
 import { dumpConfigYaml } from '../core'
 import { useApp } from '../state/store'
+import { useConfirm } from './ConfirmDialog'
 
 export function Nav() {
   const { state, dispatch, toast, canUndo, canRedo } = useApp()
+  const confirm = useConfirm()
+
+  async function handleReset() {
+    const ok = await confirm({
+      title: 'Reset to default?',
+      message: 'This replaces the entire config with the default example. You can undo it with Ctrl Z.',
+      confirmLabel: 'Reset',
+    })
+    if (ok) {
+      dispatch({ type: 'reset' })
+      toast('Reset to the default config.')
+    }
+  }
 
   function downloadYaml() {
     const yaml = dumpConfigYaml(state.config, 'full')
@@ -27,7 +41,7 @@ export function Nav() {
         <p id="paste-time">Config Builder</p>
       </div>
       <div className="nav-right">
-        <div className="preview-mode" title="Show placeholder values, or the literal %placeholder% text">
+        <div className="preview-mode" title="Parsed shows rendered text; Raw shows the literal source (MiniMessage tags, codes, and %placeholders%)">
           <button
             type="button"
             className={state.preview.parsePlaceholders !== false ? 'active' : ''}
@@ -43,6 +57,17 @@ export function Nav() {
             Raw
           </button>
         </div>
+        <button
+          type="button"
+          className={`ph-toggle${state.preview.resolvePlaceholders !== false ? ' active' : ''}`}
+          title="Parse placeholders: show sample values (Steve, the tag) in the preview instead of literal %placeholders%"
+          aria-pressed={state.preview.resolvePlaceholders !== false}
+          onClick={() =>
+            dispatch({ type: 'set-path', path: 'preview.resolvePlaceholders', value: state.preview.resolvePlaceholders === false })
+          }
+        >
+          Placeholders
+        </button>
         <span className="nav-pipe">/</span>
         <button
           className={`function${canUndo ? ' enabled' : ''}`}
@@ -93,6 +118,18 @@ export function Nav() {
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="M8 2v8M5 7l3 3 3-3" />
             <path d="M3 13h10" />
+          </svg>
+        </button>
+        <button
+          className="function enabled"
+          id="nav-reset-btn"
+          title="Reset to default"
+          aria-label="Reset to default"
+          onClick={handleReset}
+        >
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M13 8a5 5 0 1 1-1.46-3.54" />
+            <path d="M13 2.5V5.5H10" />
           </svg>
         </button>
         <button

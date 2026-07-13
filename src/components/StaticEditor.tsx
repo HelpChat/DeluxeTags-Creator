@@ -1,9 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { useApp } from '../state/store'
-import { AdvancedFields } from './AdvancedFields'
 import { EditorField } from './EditorField'
 import { ItemPicker } from './ItemPicker'
-import { PlaceholderPalette } from './PlaceholderPalette'
 
 interface StaticLabel {
   label: string
@@ -88,6 +86,13 @@ export function StaticEditor({ itemKey }: { itemKey: string }) {
   const item = config.gui[itemKey] as Record<string, unknown> | undefined
   const slotsInitial = Array.isArray(item?.slots) ? (item?.slots as string[]).join(', ') : String(item?.slots ?? '')
   const [slotsText, setSlotsText] = useState(slotsInitial)
+  const slotsFocused = useRef(false)
+  const picking = state.slotPick === itemKey
+  // Keep the text field in sync when the grid picker changes the slots, but never clobber the
+  // user's in-progress typing (only re-seed while the field is not focused).
+  useEffect(() => {
+    if (!slotsFocused.current) setSlotsText(slotsInitial)
+  }, [slotsInitial])
   if (!item) return null
 
   const isVisible = itemKey === 'tag_visible_item'
@@ -130,18 +135,34 @@ export function StaticEditor({ itemKey }: { itemKey: string }) {
 
         {isVisible ? null : (
           <>
-            <EditorField label="Display Name" value={displayname} config={config} placeholder="Display name..." onChange={(raw) => setPath('displayname', raw)} />
-            <EditorField label="Lore" value={loreVal} config={config} multiline rows={3} onChange={(raw) => setPath('lore', raw.split('\n'))} />
+            <EditorField label="Display Name" value={displayname} config={config} context="static" placeholder="Display name..." onChange={(raw) => setPath('displayname', raw)} />
+            <EditorField label="Lore" value={loreVal} config={config} context="static" multiline rows={3} onChange={(raw) => setPath('lore', raw.split('\n'))} />
             <div className="ctx-section">
               <span className="ctx-section-label">Slots</span>
-              <input type="text" value={slotsText} placeholder="e.g. 45, 47-53" onChange={(e) => handleSlots(e.target.value)} />
-              <small style={{ color: '#555', fontSize: 11, display: 'block', marginTop: 4 }}>Use slot numbers or ranges like 36-44.</small>
+              <div className="slots-row">
+                <input
+                  type="text"
+                  value={slotsText}
+                  placeholder="e.g. 45, 47-53"
+                  onFocus={() => (slotsFocused.current = true)}
+                  onBlur={() => (slotsFocused.current = false)}
+                  onChange={(e) => handleSlots(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className={picking ? 'active' : ''}
+                  onClick={() => dispatch({ type: 'set-slot-pick', key: picking ? null : itemKey })}
+                >
+                  {picking ? 'Done' : 'Pick on grid'}
+                </button>
+              </div>
+              <small style={{ color: '#555', fontSize: 11, display: 'block', marginTop: 4 }}>
+                Type slot numbers or ranges like 36-44, or click Pick on grid and choose slots in the preview.
+              </small>
             </div>
-            <PlaceholderPalette />
           </>
         )}
 
-        <AdvancedFields item={item} setPath={setPath} />
       </div>
     </>
   )

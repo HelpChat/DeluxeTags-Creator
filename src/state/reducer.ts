@@ -1,4 +1,4 @@
-import { buildPreview, clone, convertConfigTextToMiniMessage } from '../core'
+import { buildPreview, clone, convertConfigTextToMiniMessage, createDefaultState, type Config } from '../core'
 import type { Action, AppState, HistoryEntry, HistoryState } from './types'
 import {
   addCategory,
@@ -24,6 +24,7 @@ import {
   selectSlot,
   setByPath,
   setStaticItemAtSlot,
+  toggleStaticSlot,
 } from './operations'
 
 function snapshot(state: AppState): HistoryEntry {
@@ -44,6 +45,7 @@ function isConfigEdit(action: Action): boolean {
     case 'add-tag-at-slot':
     case 'add-category-at-slot':
     case 'set-static-at-slot':
+    case 'toggle-static-slot':
     case 'clone-tag':
     case 'clone-category':
     case 'paste-entries':
@@ -56,6 +58,7 @@ function isConfigEdit(action: Action): boolean {
     case 'move-preview-item':
     case 'pick-item':
     case 'import':
+    case 'reset':
     case 'toggle-minimessage':
       return true
     default:
@@ -97,6 +100,10 @@ function applyAction(state: AppState, action: Action): AppState {
       return addCategoryAtSlot(state, action.slot)
     case 'set-static-at-slot':
       return setStaticItemAtSlot(state, action.key, action.slot)
+    case 'toggle-static-slot':
+      return toggleStaticSlot(state, action.key, action.slot)
+    case 'set-slot-pick':
+      return state.slotPick === action.key ? state : { ...state, slotPick: action.key }
     case 'clone-tag':
       return cloneTag(state, action.id)
     case 'clone-category':
@@ -128,6 +135,21 @@ function applyAction(state: AppState, action: Action): AppState {
         yamlDraft: action.yamlDraft,
         yamlError: null,
         selection: { ...state.selection, slot: null },
+        slotPick: null,
+      }
+    }
+    case 'reset': {
+      // Rebuild the default config (MiniMessage on, matching first run) and clear the selection.
+      const config = createDefaultState().config as Config
+      config.use_minimessage = true
+      convertConfigTextToMiniMessage(config)
+      return {
+        ...state,
+        config,
+        selection: { slot: null, marked: [], tag: 'example', category: 'general' },
+        slotPick: null,
+        yamlDraft: '',
+        yamlError: null,
       }
     }
     case 'open-modal':

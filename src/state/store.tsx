@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   useRef,
@@ -11,6 +12,7 @@ import {
 import { convertConfigTextToMiniMessage, createDefaultState, type Config, type Preview } from '../core'
 import { historyReducer } from './reducer'
 import { ensureSelections } from './operations'
+import { loadSavedConfig, saveConfig } from './persistence'
 import type { Action, AppState, ClipboardEntry, HistoryState, Toast } from './types'
 
 /**
@@ -37,16 +39,26 @@ const AppContext = createContext<AppContextValue | null>(null)
 
 function makeInitialHistory(): HistoryState {
   const base = createDefaultState()
-  base.config.use_minimessage = true
-  convertConfigTextToMiniMessage(base.config)
+  // Restore the autosaved config when present; otherwise start from the default,
+  // enabling MiniMessage as the first-run default.
+  const saved = loadSavedConfig()
+  let config: Config
+  if (saved) {
+    config = saved
+  } else {
+    base.config.use_minimessage = true
+    convertConfigTextToMiniMessage(base.config)
+    config = base.config as Config
+  }
   const present: AppState = ensureSelections({
-    config: base.config as Config,
+    config,
     // Start with no equipped tag, so the first tag is not highlighted by default.
     preview: { ...(base.preview as Preview), activeTagId: '' },
     selection: { slot: null, marked: [], tag: 'example', category: 'general' },
     modal: 'none',
     yamlDraft: '',
     yamlError: null,
+    slotPick: null,
   })
   return { present, past: [], future: [] }
 }
@@ -58,6 +70,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
   const activeEditor = useRef<ActiveEditor | null>(null)
   const clipboard = useRef<ClipboardEntry[]>([])
+
+  // Autosave the config to localStorage, debounced so rapid edits (typing) write once.
+  // Only fires when the config reference changes, so pure UI actions do not touch storage.
+  const saveTimer = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (saveTimer.current !== undefined) window.clearTimeout(saveTimer.current)
+    saveTimer.current = window.setTimeout(() => {
+      saveConfig(history.present.config)
+    }, 400)
+    return () => {
+      if (saveTimer.current !== undefined) window.clearTimeout(saveTimer.current)
+    }
+  }, [history.present.config])
 
   const toast = useCallback((message: string, error = false) => {
     toastSeq += 1

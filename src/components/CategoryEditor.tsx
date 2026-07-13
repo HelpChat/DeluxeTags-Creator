@@ -1,15 +1,12 @@
 import { useState } from 'react'
-import { iconCandidates } from '../core'
 import { useApp } from '../state/store'
-import { AdvancedFields } from './AdvancedFields'
 import { EditorField } from './EditorField'
 import { ItemPicker } from './ItemPicker'
-import { MaterialIcon } from './MaterialIcon'
-import { McText } from './McText'
-import { PlaceholderPalette } from './PlaceholderPalette'
+import { useConfirm } from './ConfirmDialog'
 
 export function CategoryEditor({ catId }: { catId: string }) {
   const { state, dispatch, toast } = useApp()
+  const confirm = useConfirm()
   const config = state.config
   const cat = config.categories[catId]
   const [renameValue, setRenameValue] = useState(catId)
@@ -19,7 +16,6 @@ export function CategoryEditor({ catId }: { catId: string }) {
   const base = `config.categories.${catId}`
   const setPath = (key: string, value: unknown) => dispatch({ type: 'set-path', path: `${base}.${key}`, value })
   const loreVal = Array.isArray(cat.lore) ? cat.lore.join('\n') : String(cat.lore ?? '')
-  const candidates = iconCandidates(cat.item || 'NAME_TAG', state.preview.iconTemplate)
 
   function handleRename() {
     const value = renameValue.trim()
@@ -34,6 +30,14 @@ export function CategoryEditor({ catId }: { catId: string }) {
     dispatch({ type: 'rename-category', oldId: catId, newId: value })
   }
 
+  async function handleDelete() {
+    const ok = await confirm({
+      title: 'Delete category?',
+      message: `Delete the category "${catId}"? Its tags move to another category. You can undo this with Ctrl Z.`,
+    })
+    if (ok) dispatch({ type: 'delete-category', id: catId })
+  }
+
   return (
     <>
       <div className="ctx-header">
@@ -43,10 +47,7 @@ export function CategoryEditor({ catId }: { catId: string }) {
           </svg>
         </div>
         <div className="ctx-header-text">
-          <strong>
-            <McText raw={cat.name || catId} config={config} />
-          </strong>
-          <small>{catId}</small>
+          <strong>{catId}</strong>
         </div>
         {isAll ? null : (
           <button type="button" className="ctx-clone-btn" title="Duplicate category (Ctrl+D)" onClick={() => dispatch({ type: 'clone-category', id: catId })}>
@@ -57,7 +58,7 @@ export function CategoryEditor({ catId }: { catId: string }) {
           </button>
         )}
         {isAll ? null : (
-          <button type="button" className="ctx-delete-btn" title="Delete category" onClick={() => dispatch({ type: 'delete-category', id: catId })}>
+          <button type="button" className="ctx-delete-btn" title="Delete category" onClick={handleDelete}>
             <svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
               <path d="M4 4l8 8M12 4l-8 8" />
             </svg>
@@ -66,31 +67,18 @@ export function CategoryEditor({ catId }: { catId: string }) {
       </div>
 
       <div className="ctx-body">
-        <div className="tag-banner">
-          <div className="tag-banner-preview">
-            <McText raw={cat.name || catId} config={config} />
-          </div>
-          <div className="tag-banner-icon">
-            <MaterialIcon material={cat.item} candidates={candidates} imgClass="item-icon" fallbackClass="item-fallback-sm" />
-          </div>
-        </div>
-
-        <EditorField label="Category Name" value={cat.name} config={config} placeholder="&6Category Name" onChange={(raw) => setPath('name', raw)} />
-        <EditorField label="Menu Title" value={cat.gui_name} config={config} placeholder="&6Category Tags" onChange={(raw) => setPath('gui_name', raw)} />
-        <EditorField label="Lore" value={loreVal} config={config} multiline rows={3} onChange={(raw) => setPath('lore', raw.split('\n'))} />
-
-        <PlaceholderPalette />
+        <EditorField label="Category Name" value={cat.name} config={config} context="category" placeholder="&6Category Name" onChange={(raw) => setPath('name', raw)} />
+        <EditorField label="Menu Title" value={cat.gui_name} config={config} context="category" placeholder="&6Category Tags" onChange={(raw) => setPath('gui_name', raw)} />
+        <EditorField label="Lore" value={loreVal} config={config} context="category" multiline rows={3} onChange={(raw) => setPath('lore', raw.split('\n'))} />
 
         <div className="ctx-section">
           <span className="ctx-section-label">Item</span>
           <ItemPicker value={cat.item} iconTemplate={state.preview.iconTemplate} onPick={(material) => setPath('item', material)} />
         </div>
 
-        <AdvancedFields item={cat as unknown as Record<string, unknown>} setPath={setPath} />
-
         {isAll ? null : (
           <div className="ctx-section">
-            <span className="ctx-section-label">Rename ID</span>
+            <span className="ctx-section-label">Unique Category ID</span>
             <div className="rename-row">
               <input type="text" value={renameValue} placeholder={catId} onChange={(e) => setRenameValue(e.target.value)} />
               <button type="button" onClick={handleRename}>

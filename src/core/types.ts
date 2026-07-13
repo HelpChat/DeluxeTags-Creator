@@ -2,31 +2,15 @@
 // The YAML boundary is dynamic, so several fields are intentionally permissive
 // (string | number, or unknown) rather than over-constrained.
 
-export interface ModelDataComponent {
-  colors: string[];
-  flags: string[];
-  floats: string[];
-  strings: string[];
-}
-
 export interface GuiItem {
   material: string;
   data: number | string;
   displayname?: string;
   lore?: string[];
   slots?: string[];
-  item_model?: string;
-  model_data?: number | string;
-  model_data_component?: ModelDataComponent;
 }
 
-export interface AdvancedItemFields {
-  item_model?: string;
-  model_data?: number | string;
-  model_data_component?: ModelDataComponent;
-}
-
-export interface Category extends AdvancedItemFields {
+export interface Category {
   order: number | string;
   item: string;
   name: string;
@@ -34,7 +18,7 @@ export interface Category extends AdvancedItemFields {
   gui_name: string;
 }
 
-export interface Tag extends AdvancedItemFields {
+export interface Tag {
   order: number | string;
   category: string;
   tag: string;
@@ -90,6 +74,8 @@ export interface Preview {
   iconTemplate: string;
   /** When false, the preview shows literal %placeholder% text instead of resolved values. */
   parsePlaceholders: boolean;
+  /** When false, placeholders stay literal in the rendered preview (colours still render). */
+  resolvePlaceholders: boolean;
 }
 
 export interface PreviewItemRef {

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { buildPreview, clone, type PreviewResult } from '../core'
 import { useApp } from '../state/store'
 import { markedRefs } from '../state/operations'
+import { useConfirm } from './ConfirmDialog'
 import type { ClipboardEntry } from '../state/types'
 
 const COLS = 9
@@ -9,6 +10,7 @@ const COLS = 9
 /** Global keyboard shortcuts. Renders nothing; attaches a document keydown listener. */
 export function Hotkeys({ preview }: { preview: PreviewResult }) {
   const { state, dispatch, clipboard, toast } = useApp()
+  const confirm = useConfirm()
 
   useEffect(() => {
     function isTyping(target: EventTarget | null): boolean {
@@ -70,11 +72,26 @@ export function Hotkeys({ preview }: { preview: PreviewResult }) {
 
       if (e.key === 'Delete') {
         if (tags.length || categories.length) {
-          dispatch({ type: 'bulk-delete' })
+          const n = tags.length + categories.length
+          confirm({
+            title: n > 1 ? 'Delete selected?' : 'Delete entry?',
+            message: `Delete ${n} selected ${n === 1 ? 'entry' : 'entries'}? You can undo this with Ctrl Z.`,
+          }).then((ok) => {
+            if (ok) dispatch({ type: 'bulk-delete' })
+          })
         } else {
           const slot = state.selection.slot
           const ref = slot != null ? buildPreview(state.config, state.preview).slots[slot]?.ref : null
-          if (ref?.kind === 'static' && slot != null) dispatch({ type: 'remove-static-slot', key: ref.id, slot })
+          if (ref?.kind === 'static' && slot != null) {
+            const key = ref.id
+            confirm({
+              title: 'Remove item?',
+              message: 'Remove this item from the layout? You can undo this with Ctrl Z.',
+              confirmLabel: 'Remove',
+            }).then((ok) => {
+              if (ok) dispatch({ type: 'remove-static-slot', key, slot })
+            })
+          }
         }
         return
       }
@@ -95,7 +112,7 @@ export function Hotkeys({ preview }: { preview: PreviewResult }) {
 
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [state, preview, dispatch, clipboard, toast])
+  }, [state, preview, dispatch, clipboard, toast, confirm])
 
   return null
 }

@@ -60,6 +60,16 @@ describe('iconCandidates', () => {
       expect(urls.some((url) => url.includes('/block/lectern_sides.png'))).toBe(true);
     });
 
+    it('tnt resolves via its side face (there is no flat block/tnt.png)', () => {
+      const urls = iconCandidates('TNT');
+      expect(urls.some((url) => url.includes('/block/tnt_side.png'))).toBe(true);
+    });
+
+    it('pumpkin and melon resolve via side / top faces', () => {
+      expect(iconCandidates('PUMPKIN').some((url) => url.includes('/block/pumpkin_side.png'))).toBe(true);
+      expect(iconCandidates('MELON').some((url) => url.includes('/block/melon_side.png'))).toBe(true);
+    });
+
     it('other variant blocks resolve to at least one variant texture', () => {
       for (const material of ['LOOM', 'BARREL', 'COMPOSTER', 'JUKEBOX', 'CAULDRON']) {
         const id = material.toLowerCase();

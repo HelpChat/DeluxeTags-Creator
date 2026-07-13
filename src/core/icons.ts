@@ -26,6 +26,10 @@ const VARIANT_BLOCK_FACES: Readonly<Record<string, readonly string[]>> = Object.
   jukebox: ['top', 'side'],
   lectern: ['front', 'sides', 'top'],
   cauldron: ['top', 'side'],
+  tnt: ['side', 'top'],
+  pumpkin: ['side', 'top'],
+  melon: ['side', 'top'],
+  target: ['side', 'top'],
 });
 
 /**

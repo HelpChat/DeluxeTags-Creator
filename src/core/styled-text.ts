@@ -137,6 +137,31 @@ export function styledPlainMap(raw: unknown, useMiniMessage: boolean): StyledPla
   return { plain, offsetToRaw };
 }
 
+// Character-based raw boundaries for a plain range [plainStart, plainEnd). rawStart is where
+// the first selected visible character begins and rawEnd is just past the last one, so the
+// span excludes the styling tags that surround the selection. This is the tag-aware boundary
+// both replaceStyledRange (delete/insert) and applyWrapper (wrap a selection) build on, so
+// neither can splice through a tag's raw bytes.
+export function styledRawRange(
+  raw: string,
+  plainStart: number,
+  plainEnd: number,
+  useMiniMessage: boolean,
+): { rawStart: number; rawEnd: number } {
+  const source = String(raw ?? '');
+  const segments = tokenizeStyled(source, useMiniMessage);
+  const { starts, ends } = characterRanges(segments);
+  const plainLength = starts.length;
+
+  let start = Math.max(0, Math.min(plainStart, plainEnd));
+  const end = Math.min(plainLength, Math.max(plainStart, plainEnd));
+  if (start > plainLength) start = plainLength;
+
+  const rawStart = start < plainLength ? starts[start] : source.length;
+  const rawEnd = end > start ? ends[end - 1] : rawStart;
+  return { rawStart, rawEnd };
+}
+
 // Replace the visible characters in the plain range [plainStart, plainEnd) with insertText,
 // preserving the styling tags that surround (and sit between) those characters.
 //
@@ -152,16 +177,7 @@ export function replaceStyledRange(
   useMiniMessage: boolean,
 ): string {
   const source = String(raw ?? '');
-  const segments = tokenizeStyled(source, useMiniMessage);
-  const { starts, ends } = characterRanges(segments);
-  const plainLength = starts.length;
-
-  let start = Math.max(0, Math.min(plainStart, plainEnd));
-  const end = Math.min(plainLength, Math.max(plainStart, plainEnd));
-  if (start > plainLength) start = plainLength;
-
-  const rawStart = start < plainLength ? starts[start] : source.length;
-  const rawEnd = end > start ? ends[end - 1] : rawStart;
+  const { rawStart, rawEnd } = styledRawRange(source, plainStart, plainEnd, useMiniMessage);
   return source.slice(0, rawStart) + insertText + source.slice(rawEnd);
 }
 
